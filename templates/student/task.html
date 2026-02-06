@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ task.title }} - Python Trainer{% endblock %}
+
+{% block main_class %}{% endblock %}
+
+{% block head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/monokai.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="task-container">
+    <!-- Навигация -->
+    <div class="task-nav bg-light border-bottom px-3 py-2 d-flex justify-content-between align-items-center">
+        <div>
+            <a href="{{ url_for('student.lesson', lesson_id=lesson.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> К списку
+            </a>
+        </div>
+        <div>
+            <span class="text-muted">Задание {{ current_index }} из {{ total_tasks }}</span>
+        </div>
+        <div>
+            {% if prev_task %}
+            <a href="{{ url_for('student.task', task_id=prev_task.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-chevron-left"></i> Назад
+            </a>
+            {% endif %}
+            {% if next_task %}
+            <a href="{{ url_for('student.task', task_id=next_task.id) }}" class="btn btn-outline-secondary btn-sm">
+                Вперёд <i class="bi bi-chevron-right"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="task-content">
+        <!-- Левая панель: описание -->
+        <div class="task-description">
+            <div class="p-3">
+                <h4>{{ task.title }}</h4>
+                <hr>
+                <div class="task-text">
+                    {{ task.description|safe }}
+                </div>
+
+                {% set open_tests = [] %}
+                {% for test in tests %}
+                    {% if not test.hidden %}
+                        {% set _ = open_tests.append(test) %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if open_tests %}
+                <div class="examples-section mt-4">
+                    <h5><i class="bi bi-lightbulb"></i> Примеры</h5>
+                    {% for test in open_tests %}
+                    <div class="example-card bg-light rounded p-3 mb-2">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted d-block mb-1">Входные данные:</small>
+                                <pre class="bg-white p-2 rounded border mb-0"><code>{{ test.input if test.input else '(нет ввода)' }}</code></pre>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted d-block mb-1">Ожидаемый вывод:</small>
+                                <pre class="bg-white p-2 rounded border mb-0"><code>{{ test.output }}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Правая панель: редактор и консоль -->
+        <div class="task-editor">
+            <!-- Редактор кода -->
+            <div class="code-editor-container">
+                <div class="editor-header bg-dark text-white px-3 py-2 d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-code-slash"></i> Python</span>
+                    <div>
+                        <button class="btn btn-outline-light btn-sm me-2" id="runBtn" {% if progress and progress.is_completed %}disabled{% endif %}>
+                            <i class="bi bi-play-fill"></i> Запустить
+                        </button>
+                        <button class="btn btn-success btn-sm" id="checkBtn" {% if progress and progress.is_completed %}disabled{% endif %}>
+                            <i class="bi bi-check-lg"></i> Проверить
+                        </button>
+                    </div>
+                </div>
+                <textarea id="code">{% if progress and progress.code %}{{ progress.code }}{% elif task.default_code %}{{ task.default_code }}{% else %}# Напишите ваш код здесь
+{% endif %}</textarea>
+            </div>
+
+            <!-- Консоль с интерактивным вводом -->
+            <div class="console-container">
+                <div class="console-header bg-secondary text-white px-3 py-2">
+                    <i class="bi bi-terminal"></i> Консоль
+                </div>
+                <div class="console-output" id="console"></div>
+                <div class="console-input-line" id="consoleInputLine" style="display: none;">
+                    <span class="console-prompt" id="consolePrompt">&gt;&gt;&gt;</span>
+                    <input type="text" id="consoleInput" class="console-input" autocomplete="off"
+                           {% if progress and progress.is_completed %}disabled{% endif %}>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if progress and progress.is_completed %}
+<div class="position-fixed bottom-0 start-50 translate-middle-x mb-3">
+    <div class="alert alert-success shadow">
+        <i class="bi bi-check-circle-fill"></i> Задание выполнено!
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/python/python.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+<script>
+    const taskId = {{ task.id }};
+    const tests = {{ tests|tojson }};
+    const isCompleted = {{ 'true' if progress and progress.is_completed else 'false' }};
+</script>
+<script src="{{ url_for('static', filename='js/code-runner.js') }}"></script>
+{% endblock %}

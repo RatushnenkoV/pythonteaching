@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Мои уроки - Python Trainer{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-book"></i> Мои уроки</h2>
+
+{% if lessons_data %}
+{% set in_progress = [] %}
+{% set completed = [] %}
+{% set not_started = [] %}
+
+{% for item in lessons_data %}
+    {% if item.total_tasks > 0 and item.completed_tasks == item.total_tasks %}
+        {% set _ = completed.append(item) %}
+    {% elif item.completed_tasks > 0 %}
+        {% set _ = in_progress.append(item) %}
+    {% else %}
+        {% set _ = not_started.append(item) %}
+    {% endif %}
+{% endfor %}
+
+<!-- Вкладки -->
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="work-tab" data-bs-toggle="tab" data-bs-target="#work" type="button" role="tab">
+            <i class="bi bi-journal-text"></i> В работе
+            {% if in_progress or not_started %}
+            <span class="badge bg-primary">{{ (in_progress|length) + (not_started|length) }}</span>
+            {% endif %}
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="done-tab" data-bs-toggle="tab" data-bs-target="#done" type="button" role="tab">
+            <i class="bi bi-check-circle"></i> Выполнено
+            {% if completed %}
+            <span class="badge bg-success">{{ completed|length }}</span>
+            {% endif %}
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- Вкладка: В работе -->
+    <div class="tab-pane fade show active" id="work" role="tabpanel">
+        {% if in_progress or not_started %}
+
+        <!-- В процессе -->
+        {% if in_progress %}
+        <h5 class="mb-3"><i class="bi bi-hourglass-split text-warning"></i> Продолжить</h5>
+        <div class="row mb-4">
+            {% for item in in_progress %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ item.lesson.title }}</h5>
+                        <p class="card-text text-muted">
+                            {{ item.lesson.topic.name }}
+                        </p>
+                        <div class="progress mb-3" style="height: 10px;">
+                            {% set percent = (item.completed_tasks / item.total_tasks * 100) if item.total_tasks > 0 else 0 %}
+                            <div class="progress-bar bg-warning" style="width: {{ percent }}%"></div>
+                        </div>
+                        <small class="text-muted">
+                            Выполнено: {{ item.completed_tasks }} из {{ item.total_tasks }}
+                        </small>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="{{ url_for('student.lesson', lesson_id=item.lesson.id) }}" class="btn btn-warning w-100">
+                            <i class="bi bi-play-fill"></i> Продолжить
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Новые -->
+        {% if not_started %}
+        <h5 class="mb-3"><i class="bi bi-journal-plus text-primary"></i> Новые уроки</h5>
+        <div class="row mb-4">
+            {% for item in not_started %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ item.lesson.title }}</h5>
+                        <p class="card-text text-muted">
+                            {{ item.lesson.topic.name }}
+                        </p>
+                        <div class="progress mb-3" style="height: 10px;">
+                            <div class="progress-bar bg-secondary" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">
+                            Заданий: {{ item.total_tasks }}
+                        </small>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="{{ url_for('student.lesson', lesson_id=item.lesson.id) }}" class="btn btn-primary w-100">
+                            <i class="bi bi-play-fill"></i> Начать
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="alert alert-success">
+            <i class="bi bi-emoji-smile"></i> Все уроки выполнены! Отличная работа!
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Вкладка: Выполнено -->
+    <div class="tab-pane fade" id="done" role="tabpanel">
+        {% if completed %}
+        <div class="row">
+            {% for item in completed %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm border-success">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ item.lesson.title }}</h5>
+                        <p class="card-text text-muted">
+                            {{ item.lesson.topic.name }}
+                        </p>
+                        <div class="progress mb-3" style="height: 10px;">
+                            <div class="progress-bar bg-success" style="width: 100%"></div>
+                        </div>
+                        <small class="text-success">
+                            <i class="bi bi-check-circle"></i> Все задания выполнены
+                        </small>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="{{ url_for('student.lesson', lesson_id=item.lesson.id) }}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-eye"></i> Просмотреть
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Пока нет выполненных уроков. Начните с вкладки "В работе"!
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Вам пока не назначены уроки. Дождитесь, пока учитель выдаст урок вашему классу.
+</div>
+{% endif %}
+{% endblock %}

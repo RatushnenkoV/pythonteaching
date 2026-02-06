@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ lesson.title }} - Python Trainer{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons') }}">Уроки</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons', topic_id=lesson.topic_id) }}">{{ lesson.topic.name }}</a></li>
+        <li class="breadcrumb-item active">{{ lesson.title }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Настройки урока -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Настройки урока</h5>
+                <form method="POST" action="{{ url_for('teacher.delete_lesson', lesson_id=lesson.id) }}"
+                      style="display: inline;"
+                      onsubmit="return confirm('Удалить урок?');">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-trash"></i> Удалить урок
+                    </button>
+                </form>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('teacher.update_lesson', lesson_id=lesson.id) }}">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <input type="text" class="form-control" name="title" value="{{ lesson.title }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary w-100">Сохранить</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Задания -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Задания</h5>
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                    <i class="bi bi-plus-lg"></i> Добавить задание
+                </button>
+            </div>
+            <div class="card-body">
+                {% if lesson.tasks %}
+                <div class="list-group">
+                    {% for task in lesson.tasks %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-secondary me-2">{{ task.order }}</span>
+                            <strong>{{ task.title }}</strong>
+                            <small class="text-muted ms-2">{{ task.test_cases|length }} тестов</small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('teacher.task_edit', task_id=task.id) }}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('teacher.delete_task', task_id=task.id) }}"
+                                  style="display: inline;"
+                                  onsubmit="return confirm('Удалить задание?');">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">В уроке пока нет заданий.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Назначение классам -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">Назначить классам</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('teacher.assign_lesson', lesson_id=lesson.id) }}">
+                    {% if classes %}
+                    {% for class in classes %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="class_ids"
+                               value="{{ class.id }}" id="class{{ class.id }}"
+                               {% if class.id in assigned_class_ids %}checked{% endif %}>
+                        <label class="form-check-label" for="class{{ class.id }}">
+                            {{ class.name }} ({{ class.students|length }} уч.)
+                        </label>
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-success w-100 mt-3">
+                        <i class="bi bi-check-lg"></i> Сохранить назначения
+                    </button>
+                    {% else %}
+                    <p class="text-muted mb-0">У вас пока нет классов.</p>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Создать задание -->
+<div class="modal fade" id="createTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('teacher.create_task', lesson_id=lesson.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить задание</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="taskTitle" class="form-label">Название задания</label>
+                        <input type="text" class="form-control" id="taskTitle" name="title"
+                               placeholder="например: Сумма чисел" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

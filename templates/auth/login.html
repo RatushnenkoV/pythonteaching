@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход - Python Trainer{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+        <div class="text-center mb-4">
+            <h1 class="display-4"><i class="bi bi-code-slash text-primary"></i></h1>
+            <h2>Python Trainer</h2>
+            <p class="text-muted">Платформа для обучения Python</p>
+        </div>
+
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h5 class="card-title text-center mb-4">Выберите роль</h5>
+
+                <div class="d-grid gap-3">
+                    <a href="{{ url_for('auth.teacher_login') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-person-workspace"></i> Я учитель
+                    </a>
+                    <a href="{{ url_for('auth.student_login') }}" class="btn btn-success btn-lg">
+                        <i class="bi bi-mortarboard"></i> Я ученик
+                    </a>
+                </div>
+
+                <hr>
+
+                <div class="text-center">
+                    <small class="text-muted">
+                        <strong>Учитель:</strong> Зарегистрируйтесь или войдите<br>
+                        <strong>Ученик:</strong> Введите логин, который выдал учитель
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

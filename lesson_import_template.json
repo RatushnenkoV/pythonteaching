@@ -1,0 +1,50 @@
+{
+    "format_version": "1.0",
+    "description": "Шаблон для импорта уроков в Python Trainer",
+    "lessons": [
+        {
+            "title": "Название урока",
+            "tasks": [
+                {
+                    "title": "Название задания 1",
+                    "description": "<p>Описание задания в формате HTML.</p><p>Можно использовать:</p><ul><li>Списки</li><li>Код: <code>print('Hello')</code></li></ul><pre>Блоки кода</pre>",
+                    "default_code": "# Напишите ваш код здесь\n\n",
+                    "tests": [
+                        {
+                            "input": "5\n10",
+                            "output": "15",
+                            "hidden": false
+                        },
+                        {
+                            "input": "100\n200",
+                            "output": "300",
+                            "hidden": true
+                        }
+                    ]
+                },
+                {
+                    "title": "Название задания 2",
+                    "description": "<p>Еще одно задание</p>",
+                    "default_code": null,
+                    "tests": [
+                        {
+                            "input": "",
+                            "output": "Hello, World!",
+                            "hidden": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "title": "Второй урок",
+            "tasks": [
+                {
+                    "title": "Задание",
+                    "description": "<p>Описание</p>",
+                    "tests": []
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ lesson.title }} - Python Trainer{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('student.dashboard') }}">Мои уроки</a></li>
+        <li class="breadcrumb-item active">{{ lesson.title }}</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4">{{ lesson.title }}</h2>
+
+<div class="row">
+    {% for item in tasks_data %}
+    <div class="col-md-6 mb-3">
+        <div class="card {% if item.is_completed %}border-success{% endif %}">
+            <div class="card-body d-flex align-items-center">
+                {% if item.is_completed %}
+                <i class="bi bi-check-circle-fill text-success fs-3 me-3"></i>
+                {% else %}
+                <i class="bi bi-circle text-muted fs-3 me-3"></i>
+                {% endif %}
+                <div class="flex-grow-1">
+                    <h6 class="card-title mb-0">{{ item.task.title }}</h6>
+                    <small class="text-muted">Задание {{ loop.index }}</small>
+                </div>
+                <a href="{{ url_for('student.task', task_id=item.task.id) }}"
+                   class="btn {% if item.is_completed %}btn-outline-success{% else %}btn-primary{% endif %}">
+                    {% if item.is_completed %}
+                    <i class="bi bi-eye"></i> Просмотр
+                    {% else %}
+                    <i class="bi bi-play-fill"></i> Решить
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,222 @@
+/* Основные стили */
+body {
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+/* Карточки папок */
+.folder-card {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.folder-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Страница задания */
+.task-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 56px);
+}
+
+.task-nav {
+    flex-shrink: 0;
+}
+
+.task-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.task-description {
+    width: 40%;
+    overflow-y: auto;
+    border-right: 1px solid #dee2e6;
+    background: white;
+}
+
+.task-text {
+    line-height: 1.6;
+}
+
+.task-text h1, .task-text h2, .task-text h3 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.task-text pre {
+    background: #f4f4f4;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.task-text code {
+    background: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+/* Секция примеров (тесты) */
+.examples-section h5 {
+    color: #495057;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.example-card pre {
+    margin: 0;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.example-card code {
+    background: transparent;
+    padding: 0;
+    color: #212529;
+}
+
+.task-editor {
+    width: 60%;
+    display: flex;
+    flex-direction: column;
+}
+
+.code-editor-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.code-editor-container .CodeMirror {
+    flex: 1;
+    height: auto !important;
+    font-size: 14px;
+}
+
+/* Консоль */
+.console-container {
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #dee2e6;
+}
+
+.console-output {
+    flex: 1;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    padding: 10px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.console-output .error {
+    color: #f48771;
+}
+
+.console-output .success {
+    color: #89d185;
+}
+
+.console-output .info {
+    color: #6cb6ff;
+}
+
+.console-output .user-input {
+    color: #ce9178;
+}
+
+/* Интерактивный ввод в консоли */
+.console-input-line {
+    display: flex;
+    align-items: center;
+    background: #1e1e1e;
+    border-top: 1px solid #333;
+    padding: 5px 10px;
+}
+
+.console-prompt {
+    color: #89d185;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.console-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #d4d4d4;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    caret-color: #d4d4d4;
+}
+
+.console-input::placeholder {
+    color: #6a6a6a;
+}
+
+.console-input:disabled {
+    opacity: 0.5;
+}
+
+/* Журнал */
+.sticky-col {
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 1;
+}
+
+/* Печать */
+@media print {
+    .navbar, .no-print, .btn {
+        display: none !important;
+    }
+
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        border: 1px solid #000;
+        padding: 8px;
+    }
+}
+
+/* Адаптивность для страницы задания */
+@media (max-width: 992px) {
+    .task-content {
+        flex-direction: column;
+    }
+
+    .task-description {
+        width: 100%;
+        height: 40%;
+        border-right: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .task-editor {
+        width: 100%;
+        height: 60%;
+    }
+}
