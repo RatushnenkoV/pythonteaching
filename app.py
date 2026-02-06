@@ -9,7 +9,15 @@ app = Flask(__name__)
 
 # Конфигурация
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
+
+# База данных: в продакшене используем /data для Volume
+if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('FLASK_ENV') == 'production':
+    # Создаём папку /data если её нет
+    os.makedirs('/data', exist_ok=True)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////data/database.db'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Продакшен настройки
