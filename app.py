@@ -6,9 +6,16 @@ from sqlalchemy.engine import Engine
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'python-trainer-secret-key-2024'  # Фиксированный ключ для сохранения сессий
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+
+# Конфигурация
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Продакшен настройки
+if os.environ.get('FLASK_ENV') == 'production':
+    app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 db.init_app(app)
 
@@ -19,6 +26,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -79,4 +87,5 @@ with app.app_context():
 
 
 if __name__ == '__main__':
+    # Только для локальной разработки
     app.run(debug=True, port=8080)
