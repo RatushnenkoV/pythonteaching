@@ -204,19 +204,57 @@ body {
 
 /* Адаптивность для страницы задания */
 @media (max-width: 992px) {
+    .task-container {
+        height: auto;
+        min-height: calc(100vh - 56px);
+    }
+
     .task-content {
         flex-direction: column;
+        overflow: visible;
     }
 
     .task-description {
         width: 100%;
-        height: 40%;
+        height: auto;
+        overflow-y: visible;
         border-right: none;
         border-bottom: 1px solid #dee2e6;
     }
 
     .task-editor {
         width: 100%;
-        height: 60%;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .code-editor-container {
+        min-height: 350px;
+        height: 350px;
+    }
+
+    .code-editor-container .CodeMirror {
+        height: 100% !important;
+    }
+
+    .console-container {
+        height: 200px;
+        min-height: 200px;
+    }
+
+    /* Примеры в одну колонку на мобильном */
+    .example-card .row > div {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Навигация на мобильном */
+    .task-nav {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .task-nav > div {
+        text-align: center;
     }
 }
