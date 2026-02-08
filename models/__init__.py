@@ -1,1 +1,1 @@
-from .models import db, Teacher, SchoolClass, Student, Topic, Lesson, Task, TestCase, LessonAssignment, StudentProgress
+from .models import db, Teacher, SchoolClass, Student, Topic, Lesson, Task, TestCase, LessonAssignment, StudentProgress, QuizElement, QuizOption, QuizAnswer

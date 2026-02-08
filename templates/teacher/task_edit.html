@@ -12,7 +12,9 @@
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons') }}">Уроки</a></li>
+        {% if task.lesson.topic %}
         <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons', topic_id=task.lesson.topic_id) }}">{{ task.lesson.topic.name }}</a></li>
+        {% endif %}
         <li class="breadcrumb-item"><a href="{{ url_for('teacher.lesson_edit', lesson_id=task.lesson.id) }}">{{ task.lesson.title }}</a></li>
         <li class="breadcrumb-item active">{{ task.title }}</li>
     </ol>
@@ -34,7 +36,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Описание задания</label>
-                        <div id="editor" style="height: 300px;">{{ task.description|safe }}</div>
+                        <div id="editor" style="height: 300px;">{% if task.description %}{{ task.description|safe }}{% endif %}</div>
                         <input type="hidden" name="description" id="description">
                     </div>
                     <div class="mb-3">
@@ -148,6 +150,7 @@
     // Quill для описания
     const quill = new Quill('#editor', {
         theme: 'snow',
+        placeholder: 'Опишите задание для ученика...',
         modules: {
             toolbar: [
                 [{ 'header': [1, 2, 3, false] }],
@@ -175,10 +178,66 @@
         }
     });
 
+    // Сохранение при submit формы
     document.getElementById('taskForm').addEventListener('submit', function() {
         document.getElementById('description').value = quill.root.innerHTML;
-        // CodeMirror автоматически обновляет textarea
         codeEditor.save();
     });
+
+    // ===== Автосохранение =====
+    let saveTimer = null;
+    let saving = false;
+    const saveUrl = '/teacher/tasks/{{ task.id }}/autosave';
+    const statusEl = document.createElement('span');
+    statusEl.className = 'text-muted ms-2 small';
+    document.querySelector('.card-header h5').appendChild(statusEl);
+
+    function showStatus(text, cls) {
+        statusEl.textContent = text;
+        statusEl.className = 'ms-2 small ' + cls;
+    }
+
+    function scheduleAutosave() {
+        if (saveTimer) clearTimeout(saveTimer);
+        showStatus('(есть изменения)', 'text-warning ms-2 small');
+        saveTimer = setTimeout(doAutosave, 2000);
+    }
+
+    function doAutosave() {
+        if (saving) return;
+        saving = true;
+        showStatus('Сохранение...', 'text-info ms-2 small');
+
+        codeEditor.save();
+        const data = {
+            title: document.getElementById('taskTitle').value,
+            description: quill.root.innerHTML,
+            default_code: document.getElementById('defaultCode').value
+        };
+
+        fetch(saveUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                showStatus('Сохранено', 'text-success ms-2 small');
+                setTimeout(() => {
+                    if (statusEl.textContent === 'Сохранено') statusEl.textContent = '';
+                }, 3000);
+            } else {
+                showStatus('Ошибка сохранения', 'text-danger ms-2 small');
+            }
+        })
+        .catch(() => showStatus('Ошибка сети', 'text-danger ms-2 small'))
+        .finally(() => { saving = false; });
+    }
+
+    // Слушаем изменения
+    quill.on('text-change', scheduleAutosave);
+    codeEditor.on('change', scheduleAutosave);
+    document.getElementById('taskTitle').addEventListener('input', scheduleAutosave);
 </script>
 {% endblock %}

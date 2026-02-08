@@ -5,71 +5,55 @@
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons') }}">Классы</a></li>
-        {% if selected_class %}
-        <li class="breadcrumb-item">
-            <a href="{{ url_for('teacher.lessons', class_id=selected_class.id) }}">{{ selected_class.name }}</a>
+        <li class="breadcrumb-item" data-drop-target="breadcrumb" data-drop-id="">
+            <a href="{{ url_for('teacher.lessons') }}">Уроки</a>
         </li>
-        {% endif %}
         {% for bc in breadcrumbs %}
-        <li class="breadcrumb-item">
+        <li class="breadcrumb-item" data-drop-target="breadcrumb" data-drop-id="{{ bc.id }}">
             <a href="{{ url_for('teacher.lessons', topic_id=bc.id) }}">{{ bc.name }}</a>
         </li>
         {% endfor %}
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0">
         <i class="bi bi-folder2-open"></i>
         {% if parent %}
             {{ parent.name }}
-        {% elif selected_class %}
-            {{ selected_class.name }} - Темы
         {% else %}
-            Выберите класс
+            Мои папки
         {% endif %}
     </h2>
-    <div>
-        {% if selected_class %}
-        <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#createTopicModal">
-            <i class="bi bi-folder-plus"></i> Новая тема
+    <div class="d-flex gap-1 gap-lg-2">
+        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal" title="Импорт">
+            <i class="bi bi-upload"></i><span class="d-none d-lg-inline ms-1">Импорт</span>
         </button>
-        {% endif %}
         {% if parent %}
-        <button class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#importLessonsModal">
-            <i class="bi bi-upload"></i> Импорт
-        </button>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLessonModal">
-            <i class="bi bi-plus-lg"></i> Новый урок
-        </button>
+        <a href="{{ url_for('teacher.export_topic', topic_id=parent.id) }}" class="btn btn-outline-secondary" title="Экспорт папки">
+            <i class="bi bi-download"></i><span class="d-none d-lg-inline ms-1">Экспорт</span>
+        </a>
+        {% else %}
+        <a href="{{ url_for('teacher.export_all') }}" class="btn btn-outline-secondary" title="Экспорт всего">
+            <i class="bi bi-download"></i><span class="d-none d-lg-inline ms-1">Экспорт</span>
+        </a>
         {% endif %}
+        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createTopicModal" title="Новая папка">
+            <i class="bi bi-folder-plus"></i><span class="d-none d-lg-inline ms-1">Папка</span>
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLessonModal" title="Новый урок">
+            <i class="bi bi-plus-lg"></i><span class="d-none d-lg-inline ms-1">Урок</span>
+        </button>
     </div>
 </div>
 
 <div class="row">
-    <!-- Классы (если показываем классы) -->
-    {% if view_mode == 'classes' and classes %}
-    {% for class in classes %}
-    <div class="col-md-4 mb-3">
-        <div class="card h-100 folder-card">
-            <div class="card-body d-flex align-items-center">
-                <i class="bi bi-people-fill text-primary fs-2 me-3"></i>
-                <div class="flex-grow-1">
-                    <h6 class="card-title mb-0">{{ class.name }}</h6>
-                    <small class="text-muted">{{ class.topics|length }} тем</small>
-                </div>
-            </div>
-            <a href="{{ url_for('teacher.lessons', class_id=class.id) }}" class="stretched-link"></a>
-        </div>
-    </div>
-    {% endfor %}
-    {% endif %}
-
-    <!-- Темы (папки) -->
+    <!-- Папки -->
     {% for topic in topics %}
-    <div class="col-md-4 mb-3">
-        <div class="card h-100 folder-card">
+    <div class="col-md-4 mb-3 draggable-item" draggable="true" data-drag-type="folder" data-drag-id="{{ topic.id }}">
+        <div class="card h-100 folder-card"
+             data-drop-target="folder" data-drop-id="{{ topic.id }}"
+             data-folder-url="{{ url_for('teacher.lessons', topic_id=topic.id) }}">
             <div class="card-body d-flex align-items-center">
                 <i class="bi bi-folder-fill text-warning fs-2 me-3"></i>
                 <div class="flex-grow-1">
@@ -86,10 +70,20 @@
                                 <i class="bi bi-folder2-open"></i> Открыть
                             </a>
                         </li>
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="openMoveModal('folder', {{ topic.id }}, '{{ topic.name|e }}'); return false;">
+                                <i class="bi bi-arrows-move"></i> Переместить
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('teacher.export_topic', topic_id=topic.id) }}">
+                                <i class="bi bi-download"></i> Экспорт
+                            </a>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form method="POST" action="{{ url_for('teacher.delete_topic', topic_id=topic.id) }}"
-                                  onsubmit="return confirm('Удалить тему {{ topic.name }}?');">
+                                  onsubmit="return confirm('Удалить папку «{{ topic.name }}»?');">
                                 <button type="submit" class="dropdown-item text-danger">
                                     <i class="bi bi-trash"></i> Удалить
                                 </button>
@@ -98,63 +92,82 @@
                     </ul>
                 </div>
             </div>
-            <a href="{{ url_for('teacher.lessons', topic_id=topic.id) }}" class="stretched-link"></a>
         </div>
     </div>
     {% endfor %}
 
     <!-- Уроки -->
     {% for lesson in lessons %}
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
+    <div class="col-md-4 mb-3 draggable-item" draggable="true" data-drag-type="lesson" data-drag-id="{{ lesson.id }}">
+        <div class="card h-100 lesson-card" style="cursor: pointer;"
+             data-edit-url="{{ url_for('teacher.lesson_edit', lesson_id=lesson.id) }}">
             <div class="card-body d-flex align-items-center">
                 <i class="bi bi-file-earmark-text text-primary fs-2 me-3"></i>
                 <div class="flex-grow-1">
                     <h6 class="card-title mb-0">{{ lesson.title }}</h6>
                     <small class="text-muted">{{ lesson.tasks|length }} заданий</small>
                 </div>
-            </div>
-            <div class="card-footer bg-transparent">
-                <a href="{{ url_for('teacher.lesson_edit', lesson_id=lesson.id) }}" class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-pencil"></i> Редактировать
-                </a>
+                <div class="dropdown">
+                    <button class="btn btn-link" data-bs-toggle="dropdown">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('teacher.lesson_edit', lesson_id=lesson.id) }}">
+                                <i class="bi bi-pencil"></i> Редактировать
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="openMoveModal('lesson', {{ lesson.id }}, '{{ lesson.title|e }}'); return false;">
+                                <i class="bi bi-arrows-move"></i> Переместить
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('teacher.export_lesson', lesson_id=lesson.id) }}">
+                                <i class="bi bi-download"></i> Экспорт
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="POST" action="{{ url_for('teacher.delete_lesson', lesson_id=lesson.id) }}"
+                                  onsubmit="return confirm('Удалить урок «{{ lesson.title }}»?');">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="bi bi-trash"></i> Удалить
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
     {% endfor %}
 </div>
 
-{% if view_mode == 'classes' and not classes %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    У вас пока нет классов. <a href="{{ url_for('teacher.classes') }}">Создайте класс</a>, чтобы начать добавлять уроки.
-</div>
-{% elif view_mode == 'topics' and not topics and not lessons %}
+{% if not topics and not lessons %}
 <div class="alert alert-info">
     <i class="bi bi-info-circle"></i>
     {% if parent %}
-        В этой теме пока нет уроков. Создайте первый урок!
+        В этой папке пока ничего нет. Создайте папку или урок!
     {% else %}
-        В этом классе пока нет тем. Создайте первую тему!
+        У вас пока нет папок и уроков. Создайте первую папку или урок!
     {% endif %}
 </div>
 {% endif %}
 
-<!-- Modal: Создать тему -->
-{% if selected_class %}
+<!-- Modal: Создать папку -->
 <div class="modal fade" id="createTopicModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('teacher.create_topic') }}">
                 <input type="hidden" name="parent_id" value="{{ parent.id if parent else '' }}">
-                <input type="hidden" name="class_id" value="{{ selected_class.id }}">
                 <div class="modal-header">
-                    <h5 class="modal-title">Создать тему</h5>
+                    <h5 class="modal-title">Создать папку</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="topicName" class="form-label">Название темы</label>
+                        <label for="topicName" class="form-label">Название папки</label>
                         <input type="text" class="form-control" id="topicName" name="name"
                                placeholder="например: Циклы" required>
                     </div>
@@ -167,15 +180,13 @@
         </div>
     </div>
 </div>
-{% endif %}
 
 <!-- Modal: Создать урок -->
-{% if parent %}
 <div class="modal fade" id="createLessonModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('teacher.create_lesson') }}">
-                <input type="hidden" name="topic_id" value="{{ parent.id }}">
+                <input type="hidden" name="topic_id" value="{{ parent.id if parent else '' }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Создать урок</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -196,14 +207,42 @@
     </div>
 </div>
 
-<!-- Modal: Импорт уроков -->
-<div class="modal fade" id="importLessonsModal" tabindex="-1">
+<!-- Modal: Переместить -->
+<div class="modal fade" id="moveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="moveForm" method="POST" action="">
+                <input type="hidden" id="moveTargetId" name="target_id" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title">Переместить: <span id="moveItemName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-2">Выберите папку назначения:</p>
+                    <div id="folderTreeContainer" class="border rounded p-2" style="max-height: 400px; overflow-y: auto;">
+                        <div class="text-center text-muted py-3">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            Загрузка...
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary" id="moveSubmitBtn" disabled>Переместить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Импорт -->
+<div class="modal fade" id="importModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('teacher.import_lessons') }}" enctype="multipart/form-data">
-                <input type="hidden" name="topic_id" value="{{ parent.id }}">
+                <input type="hidden" name="topic_id" value="{{ parent.id if parent else '' }}">
                 <div class="modal-header">
-                    <h5 class="modal-title">Импорт уроков</h5>
+                    <h5 class="modal-title">Импорт</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -214,21 +253,36 @@
                     <div class="alert alert-info mb-0">
                         <small>
                             <i class="bi bi-info-circle"></i>
-                            Используйте файл <code>lesson_import_template.json</code> в корне проекта как шаблон.
+                            Используйте JSON-файл, полученный через экспорт, или создайте вручную.
                             <br><br>
-                            <strong>Структура файла:</strong>
-                            <pre class="mb-0 mt-2" style="font-size: 11px;">{
+                            {% if parent %}
+                            Данные будут импортированы в папку <strong>{{ parent.name }}</strong>.
+                            {% else %}
+                            Данные будут импортированы в корневую папку.
+                            {% endif %}
+                            <br><br>
+                            <strong>Папка с уроками:</strong>
+                            <pre class="mb-2 mt-1" style="font-size: 11px;">{
+  "type": "folder",
+  "name": "Название папки",
+  "folders": [],
   "lessons": [{
-    "title": "Название урока",
+    "title": "Урок",
     "tasks": [{
       "title": "Задание",
-      "description": "&lt;p&gt;HTML&lt;/p&gt;",
-      "tests": [{
-        "input": "5",
-        "output": "10",
-        "hidden": false
-      }]
+      "description": "&lt;p&gt;Текст&lt;/p&gt;",
+      "tests": [{"input": "5", "output": "10", "hidden": false}]
     }]
+  }]
+}</pre>
+                            <strong>Один урок:</strong>
+                            <pre class="mb-0 mt-1" style="font-size: 11px;">{
+  "type": "lesson",
+  "title": "Название урока",
+  "tasks": [{
+    "title": "Задание",
+    "description": "&lt;p&gt;Текст&lt;/p&gt;",
+    "tests": [{"input": "5", "output": "10", "hidden": false}]
   }]
 }</pre>
                         </small>
@@ -242,5 +296,221 @@
         </div>
     </div>
 </div>
-{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ===== Клик и контекстное меню на папках =====
+document.querySelectorAll('.folder-card').forEach(card => {
+    // Левый клик — переход в папку (если не по dropdown)
+    card.addEventListener('click', function(e) {
+        if (e.target.closest('.dropdown')) return;
+        window.location = this.dataset.folderUrl;
+    });
+
+    // Правый клик — открываем dropdown-меню
+    card.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        // Закрываем все открытые dropdown
+        document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+            bootstrap.Dropdown.getInstance(m.previousElementSibling)?.hide();
+        });
+        const toggle = this.querySelector('[data-bs-toggle="dropdown"]');
+        if (toggle) bootstrap.Dropdown.getOrCreateInstance(toggle).toggle();
+    });
+});
+
+// ===== Клик на уроках =====
+document.querySelectorAll('.lesson-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+        if (e.target.closest('.dropdown')) return;
+        window.location = this.dataset.editUrl;
+    });
+
+    card.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+            bootstrap.Dropdown.getInstance(m.previousElementSibling)?.hide();
+        });
+        const toggle = this.querySelector('[data-bs-toggle="dropdown"]');
+        if (toggle) bootstrap.Dropdown.getOrCreateInstance(toggle).toggle();
+    });
+});
+
+// ===== Drag-and-Drop =====
+let dragData = null;
+
+document.querySelectorAll('.draggable-item').forEach(el => {
+    el.addEventListener('dragstart', function(e) {
+        dragData = {
+            type: this.dataset.dragType,
+            id: parseInt(this.dataset.dragId)
+        };
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+        // Таймаут чтобы класс не повлиял на ghost image
+        setTimeout(() => {
+            this.classList.add('dragging');
+            document.body.classList.add('drag-active');
+        }, 0);
+    });
+
+    el.addEventListener('dragend', function() {
+        this.classList.remove('dragging');
+        document.body.classList.remove('drag-active');
+        document.querySelectorAll('.drop-hover').forEach(
+            el => el.classList.remove('drop-hover')
+        );
+        dragData = null;
+    });
+});
+
+// Drop на карточки папок
+document.querySelectorAll('[data-drop-target="folder"]').forEach(el => {
+    el.addEventListener('dragover', function(e) {
+        if (!dragData) return;
+        if (dragData.type === 'folder' && dragData.id === parseInt(this.dataset.dropId)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drop-hover');
+    });
+
+    el.addEventListener('dragleave', function(e) {
+        // Проверяем что ушли именно с этого элемента, а не во вложенный
+        if (!this.contains(e.relatedTarget)) {
+            this.classList.remove('drop-hover');
+        }
+    });
+
+    el.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drop-hover');
+        if (!dragData) return;
+        const targetId = parseInt(this.dataset.dropId);
+        if (dragData.type === 'folder' && dragData.id === targetId) return;
+        submitMove(dragData.type, dragData.id, targetId);
+    });
+});
+
+// Drop на хлебные крошки
+document.querySelectorAll('[data-drop-target="breadcrumb"]').forEach(el => {
+    el.addEventListener('dragover', function(e) {
+        if (!dragData) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drop-hover');
+    });
+
+    el.addEventListener('dragleave', function() {
+        this.classList.remove('drop-hover');
+    });
+
+    el.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drop-hover');
+        if (!dragData) return;
+        const targetId = this.dataset.dropId;
+        submitMove(dragData.type, dragData.id, targetId || null);
+    });
+});
+
+function submitMove(type, itemId, targetId) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = type === 'folder'
+        ? '/teacher/topics/' + itemId + '/move'
+        : '/teacher/lessons/' + itemId + '/move';
+
+    if (targetId !== null && targetId !== undefined) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'target_id';
+        input.value = targetId;
+        form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// ===== Модалка "Переместить" =====
+let moveItemType = null;
+let moveItemId = null;
+
+function openMoveModal(type, id, name) {
+    moveItemType = type;
+    moveItemId = id;
+
+    document.getElementById('moveItemName').textContent = name;
+    document.getElementById('moveSubmitBtn').disabled = true;
+    document.getElementById('moveTargetId').value = '';
+
+    document.getElementById('moveForm').action = type === 'folder'
+        ? '/teacher/topics/' + id + '/move'
+        : '/teacher/lessons/' + id + '/move';
+
+    const container = document.getElementById('folderTreeContainer');
+    container.innerHTML = '<div class="text-center text-muted py-3">' +
+        '<div class="spinner-border spinner-border-sm" role="status"></div> Загрузка...</div>';
+
+    fetch('/teacher/api/folder-tree')
+        .then(r => r.json())
+        .then(tree => {
+            container.innerHTML = '';
+
+            // Показываем "Корень" для всех типов
+            container.appendChild(createTreeItem(null, 'Корень (без папки)', 0));
+
+            renderTree(tree, container, 1);
+
+            if (container.children.length === 0) {
+                container.innerHTML = '<div class="text-muted text-center py-3">Нет доступных папок</div>';
+            }
+        })
+        .catch(() => {
+            container.innerHTML = '<div class="text-danger text-center py-3">Ошибка загрузки</div>';
+        });
+
+    new bootstrap.Modal(document.getElementById('moveModal')).show();
+}
+
+function renderTree(nodes, container, depth) {
+    for (const node of nodes) {
+        // Пропускаем перемещаемую папку (и её потомков)
+        if (moveItemType === 'folder' && node.id === moveItemId) continue;
+
+        container.appendChild(createTreeItem(node.id, node.name, depth));
+
+        if (node.children && node.children.length > 0) {
+            renderTree(node.children, container, depth + 1);
+        }
+    }
+}
+
+function createTreeItem(folderId, name, depth) {
+    const div = document.createElement('div');
+    div.className = 'folder-tree-item';
+    div.style.paddingLeft = (depth * 20 + 8) + 'px';
+
+    const icon = folderId === null ? 'bi-house-fill' : 'bi-folder-fill';
+    div.innerHTML = '<i class="bi ' + icon + ' text-warning me-2"></i><span>' + escapeHtml(name) + '</span>';
+
+    div.addEventListener('click', function() {
+        document.querySelectorAll('.folder-tree-item.selected').forEach(
+            el => el.classList.remove('selected')
+        );
+        this.classList.add('selected');
+        document.getElementById('moveTargetId').value = folderId === null ? '' : folderId;
+        document.getElementById('moveSubmitBtn').disabled = false;
+    });
+
+    return div;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
 {% endblock %}

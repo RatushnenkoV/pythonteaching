@@ -10,9 +10,20 @@ body {
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.folder-card:hover {
+.folder-card:hover,
+.lesson-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.lesson-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+/* Поднимаем карточку с открытым dropdown поверх остальных */
+.draggable-item:has(.dropdown-menu.show) {
+    z-index: 100;
+    position: relative;
 }
 
 /* Страница задания */
@@ -257,4 +268,95 @@ body {
     .task-nav > div {
         text-align: center;
     }
+}
+
+/* ===== Drag-and-Drop ===== */
+
+.dragging {
+    opacity: 0.4;
+}
+
+.drag-active [data-drop-target="folder"] {
+    outline: 2px dashed #0d6efd;
+    outline-offset: -2px;
+}
+
+.drag-active [data-drop-target="breadcrumb"] {
+    padding: 4px 8px;
+    border-radius: 4px;
+    outline: 2px dashed #6c757d;
+}
+
+.drop-hover {
+    background-color: #e7f1ff !important;
+    outline: 2px solid #0d6efd !important;
+    outline-offset: -2px;
+}
+
+[data-drop-target="breadcrumb"].drop-hover {
+    background-color: #e7f1ff;
+    outline: 2px solid #0d6efd;
+}
+
+/* ===== Модалка перемещения: дерево папок ===== */
+
+.folder-tree-item {
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+
+.folder-tree-item:hover {
+    background-color: #f0f0f0;
+}
+
+.folder-tree-item.selected {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.folder-tree-item.selected .text-warning {
+    color: white !important;
+}
+
+/* ===== Квиз: редактор (учитель) ===== */
+
+.quiz-element-card {
+    border-left: 3px solid #dee2e6;
+    transition: border-color 0.2s;
+}
+
+.quiz-element-card:hover {
+    border-left-color: #0d6efd;
+}
+
+.quiz-element-card .ql-editor {
+    min-height: 60px;
+}
+
+/* ===== Квиз: прохождение (ученик) ===== */
+
+.quiz-question-card {
+    border-left: 3px solid #0dcaf0;
+}
+
+.quiz-question-card .form-check {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.quiz-question-card .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.quiz-question-card .feedback .text-success {
+    font-weight: 500;
+}
+
+.quiz-question-card .feedback .text-danger {
+    font-weight: 500;
 }

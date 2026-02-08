@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Student, LessonAssignment, StudentProgress, Task
+from models import db, Student, LessonAssignment, StudentProgress, Task, QuizElement, QuizOption, QuizAnswer
 from functools import wraps
 from datetime import datetime
 
@@ -62,18 +62,31 @@ def lesson(lesson_id):
         return redirect(url_for('student.dashboard'))
 
     lesson = assignment.lesson
-    tasks_data = []
 
+    regular_tasks = []
+    bonus_tasks = []
+
+    all_regular_completed = True
     for task in lesson.tasks:
         progress = StudentProgress.query.filter_by(
             student_id=current_user.id, task_id=task.id
         ).first()
-        tasks_data.append({
+        item = {
             'task': task,
             'is_completed': progress.is_completed if progress else False
-        })
+        }
+        if task.is_bonus:
+            bonus_tasks.append(item)
+        else:
+            regular_tasks.append(item)
+            if not item['is_completed']:
+                all_regular_completed = False
 
-    return render_template('student/lesson.html', lesson=lesson, tasks_data=tasks_data)
+    return render_template('student/lesson.html',
+                           lesson=lesson,
+                           regular_tasks=regular_tasks,
+                           bonus_tasks=bonus_tasks,
+                           show_bonus=all_regular_completed and len(regular_tasks) > 0)
 
 
 @student_bp.route('/task/<int:task_id>')
@@ -102,6 +115,30 @@ def task(task_id):
     current_index = next((i for i, t in enumerate(all_tasks) if t.id == task_id), 0)
     prev_task = all_tasks[current_index - 1] if current_index > 0 else None
     next_task = all_tasks[current_index + 1] if current_index < len(all_tasks) - 1 else None
+
+    if task.task_type == 'quiz':
+        # Считаем количество вопросов (не текстовых блоков)
+        question_ids = [e.id for e in task.quiz_elements if e.element_type != 'text']
+        question_count = len(question_ids)
+
+        # Получаем уже отвеченные вопросы
+        answered = QuizAnswer.query.filter(
+            QuizAnswer.student_id == current_user.id,
+            QuizAnswer.element_id.in_(question_ids),
+            QuizAnswer.is_correct == True
+        ).all() if question_ids else []
+        answered_ids = [a.element_id for a in answered]
+
+        return render_template('student/quiz.html',
+                               task=task,
+                               lesson=lesson,
+                               progress=progress,
+                               prev_task=prev_task,
+                               next_task=next_task,
+                               current_index=current_index + 1,
+                               total_tasks=len(all_tasks),
+                               question_count=question_count,
+                               answered_ids=answered_ids)
 
     # Получаем тесты для задания (скрываем данные скрытых тестов)
     tests = []
@@ -190,6 +227,113 @@ def complete_task(task_id):
         db.session.add(progress)
     else:
         progress.code = code
+        progress.is_completed = True
+        progress.completed_at = datetime.utcnow()
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@student_bp.route('/task/<int:task_id>/quiz/check', methods=['POST'])
+@login_required
+@student_required
+def quiz_check(task_id):
+    task = Task.query.get_or_404(task_id)
+    lesson = task.lesson
+
+    assignment = LessonAssignment.query.filter_by(
+        lesson_id=lesson.id, class_id=current_user.class_id
+    ).first()
+    if not assignment:
+        return jsonify({'correct': False, 'error': 'Нет доступа'}), 403
+
+    data = request.get_json()
+    element_id = data.get('element_id')
+    answer = data.get('answer')
+
+    element = QuizElement.query.get_or_404(element_id)
+    if element.task_id != task_id:
+        return jsonify({'correct': False, 'error': 'Неверный элемент'}), 400
+
+    correct = False
+
+    if element.element_type == 'single_choice':
+        option = QuizOption.query.get(answer)
+        if option and option.element_id == element_id:
+            correct = option.is_correct
+
+    elif element.element_type == 'multiple_choice':
+        if isinstance(answer, list):
+            selected = set(answer)
+            correct_ids = {opt.id for opt in element.options if opt.is_correct}
+            correct = selected == correct_ids
+        else:
+            correct = False
+
+    elif element.element_type == 'text_input':
+        if element.correct_answer and isinstance(answer, str):
+            correct = answer.strip().lower() == element.correct_answer.strip().lower()
+
+    # Сохраняем ответ по вопросу
+    quiz_answer = QuizAnswer.query.filter_by(
+        student_id=current_user.id, element_id=element_id
+    ).first()
+
+    if not quiz_answer:
+        quiz_answer = QuizAnswer(
+            student_id=current_user.id,
+            element_id=element_id,
+            is_correct=correct,
+            had_errors=not correct
+        )
+        db.session.add(quiz_answer)
+    else:
+        if correct:
+            quiz_answer.is_correct = True
+        else:
+            quiz_answer.had_errors = True
+
+    # Обновляем общий прогресс если неверно
+    if not correct:
+        progress = StudentProgress.query.filter_by(
+            student_id=current_user.id, task_id=task_id
+        ).first()
+        if not progress:
+            progress = StudentProgress(student_id=current_user.id, task_id=task_id, has_errors=True)
+            db.session.add(progress)
+        else:
+            progress.has_errors = True
+
+    db.session.commit()
+    return jsonify({'correct': correct})
+
+
+@student_bp.route('/task/<int:task_id>/quiz/complete', methods=['POST'])
+@login_required
+@student_required
+def quiz_complete(task_id):
+    task = Task.query.get_or_404(task_id)
+    lesson = task.lesson
+
+    assignment = LessonAssignment.query.filter_by(
+        lesson_id=lesson.id, class_id=current_user.class_id
+    ).first()
+    if not assignment:
+        return jsonify({'success': False, 'error': 'Нет доступа'}), 403
+
+    progress = StudentProgress.query.filter_by(
+        student_id=current_user.id, task_id=task_id
+    ).first()
+
+    if not progress:
+        progress = StudentProgress(
+            student_id=current_user.id,
+            task_id=task_id,
+            is_completed=True,
+            completed_at=datetime.utcnow()
+        )
+        db.session.add(progress)
+    else:
         progress.is_completed = True
         progress.completed_at = datetime.utcnow()
 

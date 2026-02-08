@@ -54,8 +54,11 @@
                         <tr>
                             <th class="sticky-col">Ученик</th>
                             {% for task in all_tasks %}
-                            <th class="text-center" style="min-width: 80px;">
-                                <small>{{ task.title[:15] }}{% if task.title|length > 15 %}...{% endif %}</small>
+                            <th class="text-center" style="min-width: {% if task.task_type == 'quiz' %}100{% else %}80{% endif %}px;">
+                                <small>
+                                    {% if task.task_type == 'quiz' %}<i class="bi bi-question-circle text-info"></i> {% endif %}
+                                    {{ task.title[:15] }}{% if task.title|length > 15 %}...{% endif %}
+                                </small>
                             </th>
                             {% endfor %}
                         </tr>
@@ -66,8 +69,24 @@
                             <td class="sticky-col">{{ student.name }}</td>
                             {% for task in all_tasks %}
                             <td class="text-center">
-                                {% if progress_matrix[student.id][task.id] %}
+                                {% set p = progress_matrix[student.id][task.id] %}
+                                {% if p.quiz is defined %}
+                                    {% set q = p.quiz %}
+                                    <small title="Без ошибок: {{ q.clean }}, с ошибками: {{ q.errors }}, не отвечено: {{ q.pending }}">
+                                        {% if q.pending == 0 and q.errors == 0 %}
+                                        <span class="text-success fw-bold">{{ q.clean }}/{{ q.total }}</span>
+                                        {% elif q.pending == 0 %}
+                                        <span class="text-success">{{ q.clean }}</span><span class="text-muted">/</span><span class="text-warning">{{ q.errors }}</span><span class="text-muted">/</span><span class="text-muted">{{ q.total }}</span>
+                                        {% elif q.clean == 0 and q.errors == 0 %}
+                                        <span class="text-muted">—</span>
+                                        {% else %}
+                                        <span class="text-success">{{ q.clean }}</span><span class="text-muted">/</span><span class="text-warning">{{ q.errors }}</span><span class="text-muted">/</span><span class="text-muted">{{ q.pending }}?</span>
+                                        {% endif %}
+                                    </small>
+                                {% elif p.completed and not p.has_errors %}
                                 <i class="bi bi-check-circle-fill text-success"></i>
+                                {% elif p.completed and p.has_errors %}
+                                <i class="bi bi-exclamation-circle-fill text-warning"></i>
                                 {% else %}
                                 <i class="bi bi-circle text-muted"></i>
                                 {% endif %}
@@ -81,9 +100,12 @@
         </div>
     </div>
 
-    <div class="mt-3">
-        <span class="me-3"><i class="bi bi-check-circle-fill text-success"></i> Выполнено</span>
-        <span><i class="bi bi-circle text-muted"></i> Не выполнено</span>
+    <div class="mt-3 d-flex flex-wrap align-items-center gap-3">
+        <span><i class="bi bi-check-circle-fill text-success"></i> Выполнено: <strong>{{ stats.completed }}</strong></span>
+        <span><i class="bi bi-exclamation-circle-fill text-warning"></i> С ошибками: <strong>{{ stats.errors }}</strong></span>
+        <span><i class="bi bi-circle text-muted"></i> Не выполнено: <strong>{{ stats.not_done }}</strong></span>
+        <span class="ms-3 text-muted">|</span>
+        <span><small>Тесты: <span class="text-success">верно</span> / <span class="text-warning">с ош.</span> / <span class="text-muted">всего</span></small></span>
     </div>
     {% else %}
     <div class="alert alert-info">

@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ task.title }} - Python Trainer{% endblock %}
+
+{% block main_class %}{% endblock %}
+
+{% block content %}
+<div class="task-container">
+    <!-- Навигация -->
+    <div class="task-nav bg-light border-bottom px-3 py-2 d-flex justify-content-between align-items-center">
+        <div>
+            <a href="{{ url_for('student.lesson', lesson_id=lesson.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> К списку
+            </a>
+        </div>
+        <div>
+            <span class="text-muted">Задание {{ current_index }} из {{ total_tasks }}</span>
+        </div>
+        <div>
+            {% if prev_task %}
+            <a href="{{ url_for('student.task', task_id=prev_task.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-chevron-left"></i> Назад
+            </a>
+            {% endif %}
+            {% if next_task %}
+            <a href="{{ url_for('student.task', task_id=next_task.id) }}" class="btn btn-outline-secondary btn-sm">
+                Вперёд <i class="bi bi-chevron-right"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="container py-4" style="max-width: 800px;">
+        <h4><i class="bi bi-question-circle text-info"></i> {{ task.title }}</h4>
+        <hr>
+
+        {% set question_num = [0] %}
+        {% for element in task.quiz_elements %}
+        <div class="mb-4" id="element-{{ element.id }}">
+            {% if element.element_type == 'text' %}
+            <div class="task-text">{{ element.content|safe }}</div>
+
+            {% elif element.element_type == 'single_choice' %}
+            {% if question_num.append(question_num.pop() + 1) %}{% endif %}
+            <div class="card quiz-question-card">
+                <div class="card-body">
+                    <p class="fw-bold mb-2">Вопрос {{ question_num[0] }}</p>
+                    <div class="task-text mb-3">{{ element.content|safe }}</div>
+                    {% set is_answered = element.id in answered_ids %}
+                    {% for option in element.options %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio"
+                               name="q_{{ element.id }}" value="{{ option.id }}"
+                               id="opt_{{ option.id }}"
+                               {% if is_answered or (progress and progress.is_completed) %}disabled{% endif %}>
+                        <label class="form-check-label" for="opt_{{ option.id }}">{{ option.text }}</label>
+                    </div>
+                    {% endfor %}
+                    <button class="btn btn-primary btn-sm check-answer-btn mt-2"
+                            data-element-id="{{ element.id }}" data-type="single_choice"
+                            {% if is_answered or (progress and progress.is_completed) %}disabled{% endif %}>
+                        Ответить
+                    </button>
+                    <div class="feedback mt-2" id="feedback-{{ element.id }}">
+                        {% if is_answered %}<span class="text-success"><i class="bi bi-check-circle-fill"></i> Правильно!</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% elif element.element_type == 'multiple_choice' %}
+            {% if question_num.append(question_num.pop() + 1) %}{% endif %}
+            {% set is_answered = element.id in answered_ids %}
+            <div class="card quiz-question-card">
+                <div class="card-body">
+                    <p class="fw-bold mb-2">Вопрос {{ question_num[0] }}</p>
+                    <div class="task-text mb-3">{{ element.content|safe }}</div>
+                    {% for option in element.options %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox"
+                               name="q_{{ element.id }}" value="{{ option.id }}"
+                               id="opt_{{ option.id }}"
+                               {% if is_answered or (progress and progress.is_completed) %}disabled{% endif %}>
+                        <label class="form-check-label" for="opt_{{ option.id }}">{{ option.text }}</label>
+                    </div>
+                    {% endfor %}
+                    <button class="btn btn-primary btn-sm check-answer-btn mt-2"
+                            data-element-id="{{ element.id }}" data-type="multiple_choice"
+                            {% if is_answered or (progress and progress.is_completed) %}disabled{% endif %}>
+                        Ответить
+                    </button>
+                    <div class="feedback mt-2" id="feedback-{{ element.id }}">
+                        {% if is_answered %}<span class="text-success"><i class="bi bi-check-circle-fill"></i> Правильно!</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% elif element.element_type == 'text_input' %}
+            {% if question_num.append(question_num.pop() + 1) %}{% endif %}
+            {% set is_answered = element.id in answered_ids %}
+            <div class="card quiz-question-card">
+                <div class="card-body">
+                    <p class="fw-bold mb-2">Вопрос {{ question_num[0] }}</p>
+                    <div class="task-text mb-3">{{ element.content|safe }}</div>
+                    <input type="text" class="form-control mb-2" id="input_{{ element.id }}"
+                           placeholder="Ваш ответ"
+                           {% if is_answered or (progress and progress.is_completed) %}disabled{% endif %}>
+                    <button class="btn btn-primary btn-sm check-answer-btn"
+                            data-element-id="{{ element.id }}" data-type="text_input"
+                            {% if is_answered or (progress and progress.is_completed) %}disabled{% endif %}>
+                        Ответить
+                    </button>
+                    <div class="feedback mt-2" id="feedback-{{ element.id }}">
+                        {% if is_answered %}<span class="text-success"><i class="bi bi-check-circle-fill"></i> Правильно!</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if progress and progress.is_completed %}
+<div class="position-fixed bottom-0 start-50 translate-middle-x mb-3">
+    <div class="alert alert-success shadow">
+        <i class="bi bi-check-circle-fill"></i> Тест пройден!
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const taskId = {{ task.id }};
+    const isCompleted = {{ 'true' if progress and progress.is_completed else 'false' }};
+    const totalQuestions = {{ question_count }};
+    const answeredIds = {{ answered_ids|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/quiz-runner.js') }}"></script>
+{% endblock %}

@@ -6,7 +6,9 @@
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons') }}">Уроки</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons', topic_id=lesson.topic_id) }}">{{ lesson.topic.name }}</a></li>
+        {% if lesson.topic %}
+        <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons', topic_id=lesson.topic.id) }}">{{ lesson.topic.name }}</a></li>
+        {% endif %}
         <li class="breadcrumb-item active">{{ lesson.title }}</li>
     </ol>
 </nav>
@@ -16,7 +18,7 @@
         <!-- Настройки урока -->
         <div class="card shadow-sm mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Настройки урока</h5>
+                <h5 class="mb-0">Настройки урока <span id="saveStatus" class="ms-2" style="font-size: 0.75rem;"></span></h5>
                 <form method="POST" action="{{ url_for('teacher.delete_lesson', lesson_id=lesson.id) }}"
                       style="display: inline;"
                       onsubmit="return confirm('Удалить урок?');">
@@ -26,16 +28,7 @@
                 </form>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('teacher.update_lesson', lesson_id=lesson.id) }}">
-                    <div class="row">
-                        <div class="col-md-9">
-                            <input type="text" class="form-control" name="title" value="{{ lesson.title }}" required>
-                        </div>
-                        <div class="col-md-3">
-                            <button type="submit" class="btn btn-primary w-100">Сохранить</button>
-                        </div>
-                    </div>
-                </form>
+                <input type="text" class="form-control" id="lessonTitle" value="{{ lesson.title }}" required>
             </div>
         </div>
 
@@ -54,8 +47,20 @@
                     <div class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
                             <span class="badge bg-secondary me-2">{{ task.order }}</span>
+                            {% if task.task_type == 'quiz' %}
+                            <i class="bi bi-question-circle text-info me-1"></i>
+                            {% else %}
+                            <i class="bi bi-code-slash text-primary me-1"></i>
+                            {% endif %}
                             <strong>{{ task.title }}</strong>
+                            {% if task.is_bonus %}
+                            <span class="badge bg-info ms-1">доп.</span>
+                            {% endif %}
+                            {% if task.task_type == 'quiz' %}
+                            <small class="text-muted ms-2">{{ task.quiz_elements|selectattr('element_type', 'ne', 'text')|list|length }} вопросов</small>
+                            {% else %}
                             <small class="text-muted ms-2">{{ task.test_cases|length }} тестов</small>
+                            {% endif %}
                         </div>
                         <div>
                             <a href="{{ url_for('teacher.task_edit', task_id=task.id) }}" class="btn btn-outline-primary btn-sm">
@@ -86,25 +91,20 @@
                 <h5 class="mb-0">Назначить классам</h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('teacher.assign_lesson', lesson_id=lesson.id) }}">
-                    {% if classes %}
-                    {% for class in classes %}
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="class_ids"
-                               value="{{ class.id }}" id="class{{ class.id }}"
-                               {% if class.id in assigned_class_ids %}checked{% endif %}>
-                        <label class="form-check-label" for="class{{ class.id }}">
-                            {{ class.name }} ({{ class.students|length }} уч.)
-                        </label>
-                    </div>
-                    {% endfor %}
-                    <button type="submit" class="btn btn-success w-100 mt-3">
-                        <i class="bi bi-check-lg"></i> Сохранить назначения
-                    </button>
-                    {% else %}
-                    <p class="text-muted mb-0">У вас пока нет классов.</p>
-                    {% endif %}
-                </form>
+                {% if classes %}
+                {% for class in classes %}
+                <div class="form-check mb-2">
+                    <input class="form-check-input assign-checkbox" type="checkbox" name="class_ids"
+                           value="{{ class.id }}" id="class{{ class.id }}"
+                           {% if class.id in assigned_class_ids %}checked{% endif %}>
+                    <label class="form-check-label" for="class{{ class.id }}">
+                        {{ class.name }} ({{ class.students|length }} уч.)
+                    </label>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted mb-0">У вас пока нет классов.</p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -125,6 +125,30 @@
                         <input type="text" class="form-control" id="taskTitle" name="title"
                                placeholder="например: Сумма чисел" required>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Тип задания</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="task_type" value="code" id="typeCode" checked>
+                            <label class="form-check-label" for="typeCode">
+                                <i class="bi bi-code-slash"></i> Программирование
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="task_type" value="quiz" id="typeQuiz">
+                            <label class="form-check-label" for="typeQuiz">
+                                <i class="bi bi-question-circle"></i> Тест
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_bonus" id="isBonus">
+                            <label class="form-check-label" for="isBonus">
+                                Дополнительное задание
+                            </label>
+                            <div class="form-text">Будет доступно ученику только после выполнения основных заданий</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -134,4 +158,64 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const lessonId = {{ lesson.id }};
+    let saveTimer = null;
+
+    const statusEl = document.getElementById('saveStatus');
+    let statusTimer = null;
+
+    function showStatus(icon, cls, tooltip) {
+        clearTimeout(statusTimer);
+        statusEl.innerHTML = '<i class="bi ' + icon + '" title="' + tooltip + '"></i>';
+        statusEl.className = 'ms-2 ' + cls;
+        if (icon === 'bi-check-circle-fill') {
+            statusTimer = setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+        }
+    }
+
+    // Автосохранение названия
+    document.getElementById('lessonTitle').addEventListener('input', function() {
+        clearTimeout(saveTimer);
+        showStatus('bi-pencil-fill', 'text-warning', 'Есть несохранённые изменения');
+        saveTimer = setTimeout(() => {
+            showStatus('bi-arrow-repeat', 'text-info', 'Сохранение...');
+            fetch('/teacher/lessons/' + lessonId + '/autosave', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title: this.value})
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) showStatus('bi-check-circle-fill', 'text-success', 'Сохранено');
+            })
+            .catch(() => showStatus('bi-exclamation-triangle-fill', 'text-danger', 'Ошибка сохранения'));
+        }, 1500);
+    });
+
+    // Автосохранение назначений
+    function saveAssignments() {
+        const classIds = Array.from(document.querySelectorAll('.assign-checkbox:checked'))
+            .map(cb => parseInt(cb.value));
+
+        showStatus('bi-arrow-repeat', 'text-info', 'Сохранение...');
+        fetch('/teacher/lessons/' + lessonId + '/assign', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({class_ids: classIds})
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) showStatus('bi-check-circle-fill', 'text-success', 'Сохранено');
+        })
+        .catch(() => showStatus('bi-exclamation-triangle-fill', 'text-danger', 'Ошибка сохранения'));
+    }
+
+    document.querySelectorAll('.assign-checkbox').forEach(cb => {
+        cb.addEventListener('change', saveAssignments);
+    });
+</script>
 {% endblock %}

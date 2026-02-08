@@ -1,50 +1,122 @@
 {
-    "format_version": "1.0",
-    "description": "Шаблон для импорта уроков в Python Trainer",
-    "lessons": [
-        {
-            "title": "Название урока",
-            "tasks": [
-                {
-                    "title": "Название задания 1",
-                    "description": "<p>Описание задания в формате HTML.</p><p>Можно использовать:</p><ul><li>Списки</li><li>Код: <code>print('Hello')</code></li></ul><pre>Блоки кода</pre>",
-                    "default_code": "# Напишите ваш код здесь\n\n",
-                    "tests": [
-                        {
-                            "input": "5\n10",
-                            "output": "15",
-                            "hidden": false
-                        },
-                        {
-                            "input": "100\n200",
-                            "output": "300",
-                            "hidden": true
-                        }
-                    ]
-                },
-                {
-                    "title": "Название задания 2",
-                    "description": "<p>Еще одно задание</p>",
-                    "default_code": null,
-                    "tests": [
-                        {
-                            "input": "",
-                            "output": "Hello, World!",
-                            "hidden": false
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "title": "Второй урок",
-            "tasks": [
-                {
-                    "title": "Задание",
-                    "description": "<p>Описание</p>",
-                    "tests": []
-                }
-            ]
-        }
-    ]
+    "format_version": "2.0",
+    "description": "Шаблон для импорта в Python Trainer. Поддерживаются 3 формата: папка (type: folder), один урок (type: lesson), список уроков (lessons: [...]). Задания бывают двух типов: программирование (task_type: code) и тест (task_type: quiz).",
+
+    "_пример_1_папка": "Папка с подпапками и уроками (type: folder)",
+    "_пример_2_урок": "Один урок (type: lesson)",
+    "_пример_3_список": "Список уроков без папки (lessons: [...])",
+    "_типы_заданий": "task_type: 'code' (по умолчанию) — программирование, 'quiz' — тест",
+
+    "--- ФОРМАТ 1: Папка ---": {
+        "type": "folder",
+        "name": "Название папки",
+        "folders": [
+            {
+                "name": "Подпапка",
+                "folders": [],
+                "lessons": [
+                    {
+                        "title": "Урок в подпапке",
+                        "tasks": [
+                            {
+                                "title": "Задание",
+                                "description": "<p>Описание</p>",
+                                "default_code": "",
+                                "tests": [
+                                    {"input": "5", "output": "10", "hidden": false}
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "lessons": [
+            {
+                "title": "Урок в корне папки",
+                "tasks": [
+                    {
+                        "title": "Название задания",
+                        "description": "<p>Описание задания в формате HTML.</p><ul><li>Списки</li><li>Код: <code>print('Hello')</code></li></ul>",
+                        "default_code": "# Напишите ваш код здесь\n\n",
+                        "tests": [
+                            {"input": "5\n10", "output": "15", "hidden": false},
+                            {"input": "100\n200", "output": "300", "hidden": true}
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+
+    "--- ФОРМАТ 2: Один урок ---": {
+        "type": "lesson",
+        "title": "Название урока",
+        "tasks": [
+            {
+                "title": "Задание по программированию",
+                "task_type": "code",
+                "description": "<p>Описание</p>",
+                "default_code": null,
+                "tests": [
+                    {"input": "", "output": "Hello, World!", "hidden": false}
+                ]
+            },
+            {
+                "title": "Тест по теме",
+                "task_type": "quiz",
+                "elements": [
+                    {
+                        "element_type": "text",
+                        "content": "<p>Прочитайте текст и ответьте на вопросы.</p>"
+                    },
+                    {
+                        "element_type": "single_choice",
+                        "content": "<p>Какой результат выполнения <code>print(2 + 2)</code>?</p>",
+                        "options": [
+                            {"text": "3", "is_correct": false},
+                            {"text": "4", "is_correct": true},
+                            {"text": "22", "is_correct": false}
+                        ]
+                    },
+                    {
+                        "element_type": "multiple_choice",
+                        "content": "<p>Какие из этих типов данных есть в Python?</p>",
+                        "options": [
+                            {"text": "int", "is_correct": true},
+                            {"text": "str", "is_correct": true},
+                            {"text": "char", "is_correct": false},
+                            {"text": "list", "is_correct": true}
+                        ]
+                    },
+                    {
+                        "element_type": "text_input",
+                        "content": "<p>Как называется функция для вывода текста в Python?</p>",
+                        "correct_answer": "print"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "--- ФОРМАТ 3: Список уроков (старый формат) ---": {
+        "lessons": [
+            {
+                "title": "Первый урок",
+                "tasks": [
+                    {
+                        "title": "Задание",
+                        "description": "<p>Описание</p>",
+                        "tests": [
+                            {"input": "5", "output": "10", "hidden": false}
+                        ]
+                    }
+                ]
+            },
+            {
+                "title": "Второй урок",
+                "tasks": []
+            }
+        ]
+    }
 }

@@ -1,0 +1,515 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ task.title }} - Python Trainer{% endblock %}
+
+{% block head %}
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons') }}">Уроки</a></li>
+        {% if task.lesson.topic %}
+        <li class="breadcrumb-item"><a href="{{ url_for('teacher.lessons', topic_id=task.lesson.topic_id) }}">{{ task.lesson.topic.name }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item"><a href="{{ url_for('teacher.lesson_edit', lesson_id=task.lesson.id) }}">{{ task.lesson.title }}</a></li>
+        <li class="breadcrumb-item active">{{ task.title }}</li>
+    </ol>
+</nav>
+
+<!-- Заголовок -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-question-circle"></i> Редактирование теста <span id="saveStatus" class="ms-2 small"></span></h5>
+    </div>
+    <div class="card-body">
+        <label for="quizTitle" class="form-label">Название</label>
+        <input type="text" class="form-control" id="quizTitle" value="{{ task.title }}">
+    </div>
+</div>
+
+<!-- Элементы теста -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Элементы теста</h5>
+        <div>
+            <button class="btn btn-outline-primary btn-sm" onclick="addElement('text')">
+                <i class="bi bi-text-paragraph"></i> + Текст
+            </button>
+            <button class="btn btn-outline-success btn-sm" onclick="addElement('question')">
+                <i class="bi bi-question-circle"></i> + Вопрос
+            </button>
+        </div>
+    </div>
+    <div class="card-body" id="elements-container">
+        {% for element in task.quiz_elements %}
+        <div class="card mb-3 quiz-element-card" id="element-card-{{ element.id }}" data-element-id="{{ element.id }}" data-element-type="{{ element.element_type }}">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="element-type-label">
+                    {% if element.element_type == 'text' %}
+                    <i class="bi bi-text-paragraph text-secondary"></i> Текстовый блок
+                    {% else %}
+                    <i class="bi bi-question-circle text-info"></i> Вопрос
+                    {% endif %}
+                </span>
+                <div class="d-flex gap-1">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="moveElement({{ element.id }}, 'up')" title="Вверх"><i class="bi bi-arrow-up"></i></button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="moveElement({{ element.id }}, 'down')" title="Вниз"><i class="bi bi-arrow-down"></i></button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteElement({{ element.id }})" title="Удалить"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if element.element_type == 'text' %}
+                <div id="editor-{{ element.id }}" class="quill-editor" data-element-id="{{ element.id }}" style="min-height: 100px;">
+                    {% if element.content %}{{ element.content|safe }}{% endif %}
+                </div>
+
+                {% else %}
+                <label class="form-label fw-bold">Текст вопроса</label>
+                <div id="editor-{{ element.id }}" class="quill-editor" data-element-id="{{ element.id }}" style="min-height: 80px;">
+                    {% if element.content %}{{ element.content|safe }}{% endif %}
+                </div>
+
+                <label class="form-label mt-3 fw-bold">Тип ответа</label>
+                <select class="form-select element-type-select" data-element-id="{{ element.id }}">
+                    <option value="single_choice" {% if element.element_type == 'single_choice' %}selected{% endif %}>Один из списка</option>
+                    <option value="multiple_choice" {% if element.element_type == 'multiple_choice' %}selected{% endif %}>Много из списка</option>
+                    <option value="text_input" {% if element.element_type == 'text_input' %}selected{% endif %}>Ввод ответа</option>
+                </select>
+
+                <!-- Варианты ответа (single/multiple) -->
+                <div class="mt-3 options-section" data-element-id="{{ element.id }}" style="{% if element.element_type == 'text_input' %}display:none{% endif %}">
+                    <label class="form-label fw-bold">Варианты ответа</label>
+                    <div class="options-list">
+                        {% for option in element.options %}
+                        <div class="input-group mb-2 option-row" data-option-id="{{ option.id }}">
+                            <div class="input-group-text">
+                                <input type="{{ 'radio' if element.element_type == 'single_choice' else 'checkbox' }}"
+                                       class="form-check-input mt-0 option-correct"
+                                       name="correct_{{ element.id }}"
+                                       data-option-id="{{ option.id }}"
+                                       {% if option.is_correct %}checked{% endif %}>
+                            </div>
+                            <input type="text" class="form-control option-text" value="{{ option.text }}"
+                                   data-option-id="{{ option.id }}" placeholder="Введите вариант ответа">
+                            <button class="btn btn-outline-danger" onclick="deleteOption({{ option.id }})"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="addOption({{ element.id }})">
+                        <i class="bi bi-plus"></i> Добавить вариант
+                    </button>
+                </div>
+
+                <!-- Правильный ответ (text_input) -->
+                <div class="mt-3 correct-answer-section" data-element-id="{{ element.id }}" style="{% if element.element_type != 'text_input' %}display:none{% endif %}">
+                    <label class="form-label fw-bold">Правильный ответ</label>
+                    <input type="text" class="form-control correct-answer-input"
+                           value="{{ element.correct_answer or '' }}"
+                           data-element-id="{{ element.id }}"
+                           placeholder="Введите правильный ответ">
+                    <div class="form-text">Сравнение без учёта регистра, пробелы по краям игнорируются</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not task.quiz_elements %}
+        <p class="text-muted" id="empty-message">В тесте пока нет элементов. Добавьте текстовый блок или вопрос.</p>
+        {% endif %}
+
+    </div>
+</div>
+
+<div class="text-center mb-4" id="bottom-buttons">
+    <button class="btn btn-outline-primary" onclick="addElement('text')">
+        <i class="bi bi-text-paragraph"></i> + Текст
+    </button>
+    <button class="btn btn-outline-success" onclick="addElement('question')">
+        <i class="bi bi-question-circle"></i> + Вопрос
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+    const taskId = {{ task.id }};
+    let saveTimer = null;
+    const quillEditors = {};
+
+    const statusEl = document.getElementById('saveStatus');
+    function showStatus(text, cls) {
+        statusEl.textContent = text;
+        statusEl.className = 'ms-2 small ' + cls;
+    }
+
+    // ===== Инициализация Quill-редактора =====
+    function initQuill(elementId) {
+        const editorDiv = document.getElementById('editor-' + elementId);
+        if (!editorDiv || quillEditors[elementId]) return;
+
+        const quill = new Quill(editorDiv, {
+            theme: 'snow',
+            modules: {
+                toolbar: [
+                    [{'header': [1, 2, 3, false]}],
+                    ['bold', 'italic', 'underline', 'code'],
+                    [{'list': 'ordered'}, {'list': 'bullet'}],
+                    ['code-block'],
+                    ['clean']
+                ]
+            }
+        });
+
+        quill.on('text-change', function() {
+            clearTimeout(saveTimer);
+            showStatus('(есть изменения)', 'text-warning');
+            saveTimer = setTimeout(() => {
+                showStatus('Сохранение...', 'text-info');
+                fetch('/teacher/quiz-elements/' + elementId + '/autosave', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({content: quill.root.innerHTML})
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        showStatus('Сохранено', 'text-success');
+                        setTimeout(() => { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 3000);
+                    }
+                })
+                .catch(() => showStatus('Ошибка', 'text-danger'));
+            }, 1500);
+        });
+
+        quillEditors[elementId] = quill;
+    }
+
+    // ===== Перенумерация вопросов =====
+    function renumberQuestions() {
+        let num = 0;
+        document.querySelectorAll('#elements-container > .quiz-element-card').forEach(card => {
+            if (card.dataset.elementType !== 'text') {
+                num++;
+                const label = card.querySelector('.element-type-label');
+                if (label) label.innerHTML = '<i class="bi bi-question-circle text-info"></i> Вопрос ' + num;
+            }
+        });
+        // Пустое состояние
+        const container = document.getElementById('elements-container');
+        const hasCards = container.querySelectorAll('.quiz-element-card').length > 0;
+        let emptyMsg = document.getElementById('empty-message');
+        if (!hasCards && !emptyMsg) {
+            const p = document.createElement('p');
+            p.id = 'empty-message';
+            p.className = 'text-muted';
+            p.textContent = 'В тесте пока нет элементов. Добавьте текстовый блок или вопрос.';
+            container.appendChild(p);
+        } else if (hasCards && emptyMsg) {
+            emptyMsg.remove();
+        }
+    }
+
+    // ===== Добавить элемент =====
+    async function addElement(type) {
+        try {
+            const response = await fetch('/teacher/tasks/' + taskId + '/quiz/add-element', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({element_type: type})
+            });
+            const result = await response.json();
+            if (!result.success) return;
+
+            const el = result.element;
+            const isText = el.element_type === 'text';
+
+            const card = document.createElement('div');
+            card.className = 'card mb-3 quiz-element-card';
+            card.id = 'element-card-' + el.id;
+            card.dataset.elementId = el.id;
+            card.dataset.elementType = el.element_type;
+
+            card.innerHTML = `
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <span class="element-type-label">
+                        ${isText
+                            ? '<i class="bi bi-text-paragraph text-secondary"></i> Текстовый блок'
+                            : '<i class="bi bi-question-circle text-info"></i> Вопрос'}
+                    </span>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="moveElement(${el.id}, 'up')" title="Вверх"><i class="bi bi-arrow-up"></i></button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="moveElement(${el.id}, 'down')" title="Вниз"><i class="bi bi-arrow-down"></i></button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteElement(${el.id})" title="Удалить"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    ${isText ? `
+                        <div id="editor-${el.id}" class="quill-editor" data-element-id="${el.id}" style="min-height: 100px;"></div>
+                    ` : `
+                        <label class="form-label fw-bold">Текст вопроса</label>
+                        <div id="editor-${el.id}" class="quill-editor" data-element-id="${el.id}" style="min-height: 80px;"></div>
+                        <label class="form-label mt-3 fw-bold">Тип ответа</label>
+                        <select class="form-select element-type-select" data-element-id="${el.id}">
+                            <option value="single_choice" selected>Один из списка</option>
+                            <option value="multiple_choice">Много из списка</option>
+                            <option value="text_input">Ввод ответа</option>
+                        </select>
+                        <div class="mt-3 options-section" data-element-id="${el.id}">
+                            <label class="form-label fw-bold">Варианты ответа</label>
+                            <div class="options-list"></div>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="addOption(${el.id})">
+                                <i class="bi bi-plus"></i> Добавить вариант
+                            </button>
+                        </div>
+                        <div class="mt-3 correct-answer-section" data-element-id="${el.id}" style="display:none">
+                            <label class="form-label fw-bold">Правильный ответ</label>
+                            <input type="text" class="form-control correct-answer-input"
+                                   data-element-id="${el.id}" placeholder="Введите правильный ответ">
+                            <div class="form-text">Сравнение без учёта регистра, пробелы по краям игнорируются</div>
+                        </div>
+                    `}
+                </div>
+            `;
+
+            document.getElementById('elements-container').appendChild(card);
+            initQuill(el.id);
+            renumberQuestions();
+            card.scrollIntoView({behavior: 'smooth', block: 'center'});
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    }
+
+    // ===== Удалить элемент =====
+    async function deleteElement(elementId) {
+        if (!confirm('Удалить элемент?')) return;
+
+        try {
+            const response = await fetch('/teacher/quiz-elements/' + elementId + '/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const result = await response.json();
+            if (result.success) {
+                const card = document.getElementById('element-card-' + elementId);
+                if (card) card.remove();
+                delete quillEditors[elementId];
+                renumberQuestions();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    }
+
+    // ===== Переместить элемент =====
+    async function moveElement(elementId, direction) {
+        try {
+            const response = await fetch('/teacher/quiz-elements/' + elementId + '/move', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({direction: direction})
+            });
+            const result = await response.json();
+            if (result.success) {
+                const card = document.getElementById('element-card-' + elementId);
+                if (!card) return;
+
+                if (direction === 'up' && card.previousElementSibling && card.previousElementSibling.classList.contains('quiz-element-card')) {
+                    card.parentNode.insertBefore(card, card.previousElementSibling);
+                } else if (direction === 'down' && card.nextElementSibling && card.nextElementSibling.classList.contains('quiz-element-card')) {
+                    card.parentNode.insertBefore(card.nextElementSibling, card);
+                }
+                renumberQuestions();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    }
+
+    // ===== Добавить вариант ответа =====
+    async function addOption(elementId) {
+        try {
+            const response = await fetch('/teacher/quiz-elements/' + elementId + '/options/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const result = await response.json();
+            if (!result.success) return;
+
+            const opt = result.option;
+            const card = document.getElementById('element-card-' + elementId);
+            const type = card.dataset.elementType;
+            const inputType = type === 'single_choice' ? 'radio' : 'checkbox';
+
+            const row = document.createElement('div');
+            row.className = 'input-group mb-2 option-row';
+            row.dataset.optionId = opt.id;
+            row.innerHTML = `
+                <div class="input-group-text">
+                    <input type="${inputType}" class="form-check-input mt-0 option-correct"
+                           name="correct_${elementId}" data-option-id="${opt.id}">
+                </div>
+                <input type="text" class="form-control option-text" value="${opt.text}"
+                       data-option-id="${opt.id}" placeholder="Введите вариант ответа">
+                <button class="btn btn-outline-danger" onclick="deleteOption(${opt.id})"><i class="bi bi-x-lg"></i></button>
+            `;
+
+            card.querySelector('.options-section .options-list').appendChild(row);
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    }
+
+    // ===== Удалить вариант ответа =====
+    async function deleteOption(optionId) {
+        if (!confirm('Удалить вариант?')) return;
+
+        try {
+            const response = await fetch('/teacher/quiz-options/' + optionId + '/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const result = await response.json();
+            if (result.success) {
+                const row = document.querySelector('.option-row[data-option-id="' + optionId + '"]');
+                if (row) row.remove();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    }
+
+    // ===== Автосохранение заголовка =====
+    document.getElementById('quizTitle').addEventListener('input', function() {
+        clearTimeout(saveTimer);
+        showStatus('(есть изменения)', 'text-warning');
+        saveTimer = setTimeout(() => {
+            showStatus('Сохранение...', 'text-info');
+            fetch('/teacher/tasks/' + taskId + '/quiz/autosave', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title: this.value})
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    showStatus('Сохранено', 'text-success');
+                    setTimeout(() => { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 3000);
+                }
+            })
+            .catch(() => showStatus('Ошибка', 'text-danger'));
+        }, 1500);
+    });
+
+    // ===== Инициализация всех Quill-редакторов =====
+    document.querySelectorAll('.quill-editor').forEach(editorDiv => {
+        initQuill(parseInt(editorDiv.dataset.elementId));
+    });
+
+    // ===== Делегирование событий =====
+    const container = document.getElementById('elements-container');
+
+    // Смена типа вопроса
+    container.addEventListener('change', function(e) {
+        if (e.target.classList.contains('element-type-select')) {
+            const elementId = e.target.dataset.elementId;
+            const newType = e.target.value;
+            const card = document.getElementById('element-card-' + elementId);
+
+            fetch('/teacher/quiz-elements/' + elementId + '/autosave', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({element_type: newType})
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) showStatus('Сохранено', 'text-success');
+            });
+
+            card.dataset.elementType = newType;
+            const optionsSection = card.querySelector('.options-section');
+            const correctSection = card.querySelector('.correct-answer-section');
+
+            if (newType === 'text_input') {
+                optionsSection.style.display = 'none';
+                correctSection.style.display = '';
+            } else {
+                optionsSection.style.display = '';
+                correctSection.style.display = 'none';
+                const inputType = newType === 'single_choice' ? 'radio' : 'checkbox';
+                optionsSection.querySelectorAll('.option-correct').forEach(input => {
+                    input.type = inputType;
+                });
+            }
+        }
+
+        // Переключение правильного варианта
+        if (e.target.classList.contains('option-correct')) {
+            const optionId = e.target.dataset.optionId;
+            fetch('/teacher/quiz-options/' + optionId + '/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({is_correct: e.target.checked})
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) showStatus('Сохранено', 'text-success');
+            });
+        }
+    });
+
+    // Автосохранение текста вариантов и правильного ответа
+    container.addEventListener('input', function(e) {
+        if (e.target.classList.contains('option-text')) {
+            const optionId = e.target.dataset.optionId;
+            clearTimeout(saveTimer);
+            showStatus('(есть изменения)', 'text-warning');
+            saveTimer = setTimeout(() => {
+                showStatus('Сохранение...', 'text-info');
+                fetch('/teacher/quiz-options/' + optionId + '/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: e.target.value})
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        showStatus('Сохранено', 'text-success');
+                        setTimeout(() => { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 3000);
+                    }
+                })
+                .catch(() => showStatus('Ошибка', 'text-danger'));
+            }, 1500);
+        }
+
+        if (e.target.classList.contains('correct-answer-input')) {
+            const elementId = e.target.dataset.elementId;
+            clearTimeout(saveTimer);
+            showStatus('(есть изменения)', 'text-warning');
+            saveTimer = setTimeout(() => {
+                showStatus('Сохранение...', 'text-info');
+                fetch('/teacher/quiz-elements/' + elementId + '/autosave', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({correct_answer: e.target.value})
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        showStatus('Сохранено', 'text-success');
+                        setTimeout(() => { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 3000);
+                    }
+                })
+                .catch(() => showStatus('Ошибка', 'text-danger'));
+            }, 1500);
+        }
+    });
+
+    // Начальная нумерация вопросов
+    renumberQuestions();
+</script>
+{% endblock %}

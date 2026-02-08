@@ -93,7 +93,44 @@ with app.app_context():
         db.session.execute(text('ALTER TABLE tasks ADD COLUMN default_code TEXT'))
         db.session.commit()
 
+    # Миграция: добавляем task_type в таблицу tasks
+    if 'task_type' not in columns:
+        db.session.execute(text("ALTER TABLE tasks ADD COLUMN task_type VARCHAR(20) DEFAULT 'code'"))
+        db.session.commit()
+
+    # Миграция: добавляем is_bonus в таблицу tasks
+    if 'is_bonus' not in columns:
+        db.session.execute(text('ALTER TABLE tasks ADD COLUMN is_bonus BOOLEAN DEFAULT 0'))
+        db.session.commit()
+
+    # Миграция: добавляем has_errors в таблицу student_progress
+    sp_columns = [col['name'] for col in inspector.get_columns('student_progress')]
+    if 'has_errors' not in sp_columns:
+        db.session.execute(text('ALTER TABLE student_progress ADD COLUMN has_errors BOOLEAN DEFAULT 0'))
+        db.session.commit()
+
+    # Миграция: делаем topic_id nullable в таблице lessons
+    # SQLite не поддерживает ALTER COLUMN, поэтому пересоздаём таблицу
+    lessons_columns = inspector.get_columns('lessons')
+    topic_id_col = next((c for c in lessons_columns if c['name'] == 'topic_id'), None)
+    if topic_id_col and topic_id_col.get('nullable') is False:
+        db.session.execute(text('PRAGMA foreign_keys=OFF'))
+        db.session.execute(text('''
+            CREATE TABLE lessons_new (
+                id INTEGER PRIMARY KEY,
+                title VARCHAR(200) NOT NULL,
+                topic_id INTEGER REFERENCES topics(id),
+                teacher_id INTEGER NOT NULL REFERENCES teachers(id),
+                created_at DATETIME
+            )
+        '''))
+        db.session.execute(text('INSERT INTO lessons_new SELECT * FROM lessons'))
+        db.session.execute(text('DROP TABLE lessons'))
+        db.session.execute(text('ALTER TABLE lessons_new RENAME TO lessons'))
+        db.session.execute(text('PRAGMA foreign_keys=ON'))
+        db.session.commit()
+
 
 if __name__ == '__main__':
     # Только для локальной разработки
-    app.run(debug=True, port=8080)
+    app.run(host='0.0.0.0', debug=True, port=8080)

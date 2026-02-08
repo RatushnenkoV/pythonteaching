@@ -75,7 +75,7 @@ class Lesson(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=True)
     teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -89,12 +89,15 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lesson_id = db.Column(db.Integer, db.ForeignKey('lessons.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
+    task_type = db.Column(db.String(20), default='code')  # 'code' | 'quiz'
+    is_bonus = db.Column(db.Boolean, default=False)
     description = db.Column(db.Text, nullable=True)
     default_code = db.Column(db.Text, nullable=True)
     order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     test_cases = db.relationship('TestCase', backref='task', lazy=True, order_by='TestCase.order', cascade='all, delete-orphan')
+    quiz_elements = db.relationship('QuizElement', backref='task', lazy=True, order_by='QuizElement.order', cascade='all, delete-orphan')
     progress = db.relationship('StudentProgress', backref='task', lazy=True, cascade='all, delete-orphan')
 
 
@@ -128,6 +131,42 @@ class StudentProgress(db.Model):
     task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
     code = db.Column(db.Text, nullable=True)
     is_completed = db.Column(db.Boolean, default=False)
+    has_errors = db.Column(db.Boolean, default=False)
     completed_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (db.UniqueConstraint('student_id', 'task_id', name='unique_student_task'),)
+
+
+class QuizElement(db.Model):
+    __tablename__ = 'quiz_elements'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
+    element_type = db.Column(db.String(20), nullable=False)  # 'text' | 'single_choice' | 'multiple_choice' | 'text_input'
+    content = db.Column(db.Text, nullable=True)
+    correct_answer = db.Column(db.Text, nullable=True)  # для text_input
+    order = db.Column(db.Integer, default=0)
+
+    options = db.relationship('QuizOption', backref='element', lazy=True, order_by='QuizOption.order', cascade='all, delete-orphan')
+
+
+class QuizOption(db.Model):
+    __tablename__ = 'quiz_options'
+
+    id = db.Column(db.Integer, primary_key=True)
+    element_id = db.Column(db.Integer, db.ForeignKey('quiz_elements.id'), nullable=False)
+    text = db.Column(db.Text, nullable=False)
+    is_correct = db.Column(db.Boolean, default=False)
+    order = db.Column(db.Integer, default=0)
+
+
+class QuizAnswer(db.Model):
+    __tablename__ = 'quiz_answers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+    element_id = db.Column(db.Integer, db.ForeignKey('quiz_elements.id'), nullable=False)
+    is_correct = db.Column(db.Boolean, default=False)
+    had_errors = db.Column(db.Boolean, default=False)
+
+    __table_args__ = (db.UniqueConstraint('student_id', 'element_id', name='unique_student_element'),)
