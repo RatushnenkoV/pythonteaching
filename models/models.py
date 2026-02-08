@@ -50,6 +50,7 @@ class Student(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     progress = db.relationship('StudentProgress', backref='student', lazy=True, cascade='all, delete-orphan')
+    quiz_answers = db.relationship('QuizAnswer', backref='student', lazy=True, cascade='all, delete-orphan')
 
     def get_id(self):
         return f"student_{self.id}"
@@ -148,6 +149,7 @@ class QuizElement(db.Model):
     order = db.Column(db.Integer, default=0)
 
     options = db.relationship('QuizOption', backref='element', lazy=True, order_by='QuizOption.order', cascade='all, delete-orphan')
+    answers = db.relationship('QuizAnswer', backref='element', lazy=True, cascade='all, delete-orphan')
 
 
 class QuizOption(db.Model):
