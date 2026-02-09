@@ -360,3 +360,30 @@ body {
 .quiz-question-card .feedback .text-danger {
     font-weight: 500;
 }
+
+/* ===== Автодополнение CodeMirror ===== */
+
+.CodeMirror-hints {
+    background: #272822;
+    border: 1px solid #3e3d32;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    padding: 4px 0;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.CodeMirror-hint {
+    padding: 4px 12px;
+    color: #f8f8f2;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.CodeMirror-hint-active {
+    background: #49483e;
+    color: #f8f8f2;
+}

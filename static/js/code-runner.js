@@ -1,3 +1,77 @@
+// Python ключевые слова и встроенные функции для автодополнения
+const pythonKeywords = [
+    // Ключевые слова
+    'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue',
+    'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from',
+    'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not',
+    'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield',
+    'True', 'False', 'None',
+    // Встроенные функции
+    'print', 'input', 'len', 'range', 'int', 'str', 'float', 'bool',
+    'list', 'dict', 'set', 'tuple', 'type', 'abs', 'max', 'min', 'sum',
+    'round', 'sorted', 'reversed', 'enumerate', 'zip', 'map', 'filter',
+    'open', 'format', 'chr', 'ord', 'hex', 'bin', 'oct', 'pow', 'divmod',
+    'isinstance', 'issubclass', 'hasattr', 'getattr', 'setattr', 'delattr',
+    'callable', 'iter', 'next', 'slice', 'super', 'property', 'staticmethod',
+    'classmethod', 'vars', 'dir', 'help', 'id', 'hash', 'repr', 'ascii',
+    'all', 'any', 'eval', 'exec', 'compile', 'globals', 'locals',
+    // Методы строк
+    'append', 'extend', 'insert', 'remove', 'pop', 'clear', 'index',
+    'count', 'sort', 'reverse', 'copy', 'join', 'split', 'strip',
+    'lstrip', 'rstrip', 'replace', 'find', 'rfind', 'upper', 'lower',
+    'capitalize', 'title', 'startswith', 'endswith', 'isdigit', 'isalpha',
+    'isalnum', 'isspace', 'isupper', 'islower', 'center', 'ljust', 'rjust',
+    'zfill', 'format', 'encode', 'decode', 'keys', 'values', 'items',
+    'get', 'update', 'add', 'discard', 'union', 'intersection', 'difference'
+];
+
+// Функция автодополнения для Python
+function pythonHint(cm) {
+    const cursor = cm.getCursor();
+    const token = cm.getTokenAt(cursor);
+    const start = token.start;
+    const end = cursor.ch;
+    const currentWord = token.string.slice(0, end - start);
+
+    if (currentWord.length < 1) return null;
+
+    // Собираем слова из документа (переменные пользователя)
+    const docWords = new Set();
+    const content = cm.getValue();
+    const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
+    let match;
+    while ((match = wordRegex.exec(content)) !== null) {
+        if (match[0] !== currentWord && match[0].length > 1) {
+            docWords.add(match[0]);
+        }
+    }
+
+    // Объединяем Python слова и слова из документа
+    const allWords = [...new Set([...pythonKeywords, ...docWords])];
+
+    // Фильтруем по текущему вводу
+    const filtered = allWords.filter(word =>
+        word.toLowerCase().startsWith(currentWord.toLowerCase()) && word !== currentWord
+    );
+
+    if (filtered.length === 0) return null;
+
+    // Сортируем: сначала точные совпадения по регистру, потом остальные
+    filtered.sort((a, b) => {
+        const aStarts = a.startsWith(currentWord);
+        const bStarts = b.startsWith(currentWord);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return a.localeCompare(b);
+    });
+
+    return {
+        list: filtered.slice(0, 10), // Максимум 10 подсказок
+        from: CodeMirror.Pos(cursor.line, start),
+        to: CodeMirror.Pos(cursor.line, end)
+    };
+}
+
 // Инициализация редактора CodeMirror
 const editor = CodeMirror.fromTextArea(document.getElementById('code'), {
     mode: 'python',
@@ -6,12 +80,48 @@ const editor = CodeMirror.fromTextArea(document.getElementById('code'), {
     indentUnit: 4,
     tabSize: 4,
     indentWithTabs: false,
+    autoCloseBrackets: true,
+    hintOptions: { hint: pythonHint, completeSingle: false },
     extraKeys: {
         'Tab': function(cm) {
             cm.replaceSelection('    ', 'end');
-        }
+        },
+        'Ctrl-Space': 'autocomplete'
     },
     readOnly: isCompleted
+});
+
+// Автоматически показывать подсказки при вводе
+editor.on('inputRead', (cm, change) => {
+    if (change.origin === '+input' && /[a-zA-Z_]/.test(change.text[0])) {
+        const cursor = cm.getCursor();
+        const token = cm.getTokenAt(cursor);
+        // Показывать подсказки только если введено минимум 2 символа
+        if (token.string.length >= 2) {
+            cm.showHint({ completeSingle: false });
+        }
+    }
+});
+
+// Обрамление выделенного текста скобками/кавычками
+const bracketPairs = {
+    '(': ')',
+    '[': ']',
+    '{': '}',
+    '"': '"',
+    "'": "'"
+};
+
+editor.on('beforeChange', (cm, change) => {
+    if (change.origin === '+input' && change.text.length === 1) {
+        const char = change.text[0];
+        if (bracketPairs[char] && cm.somethingSelected()) {
+            const selections = cm.getSelections();
+            const newSelections = selections.map(sel => char + sel + bracketPairs[char]);
+            cm.replaceSelections(newSelections);
+            change.cancel();
+        }
+    }
 });
 
 const consoleEl = document.getElementById('console');
@@ -21,13 +131,49 @@ const consolePrompt = document.getElementById('consolePrompt');
 const runBtn = document.getElementById('runBtn');
 const checkBtn = document.getElementById('checkBtn');
 
-let pyodide = null;
+// Web Worker для выполнения Python
+let pyodideWorker = null;
 let pyodideReady = false;
+let workerResolve = null; // Callback для результата от воркера
 let inputResolve = null; // Для асинхронного ввода
-let collectedInputs = []; // Собранные входные данные
-let inputIndex = 0;
-let isCollectingInputs = false;
-let expectedInputCount = 0;
+
+// Таймаут для выполнения кода (в миллисекундах)
+const EXECUTION_TIMEOUT = 5000;
+
+// Создание нового воркера
+function createWorker() {
+    if (pyodideWorker) {
+        pyodideWorker.terminate();
+    }
+
+    pyodideWorker = new Worker('/static/js/pyodide-worker.js');
+    pyodideReady = false;
+
+    pyodideWorker.onmessage = function(e) {
+        const { type, output, error } = e.data;
+
+        if (type === 'ready') {
+            pyodideReady = true;
+            consoleLog('Python готов к работе!', 'success');
+        } else if (type === 'result' || type === 'error') {
+            if (workerResolve) {
+                workerResolve({ output: output || '', error: error || null });
+                workerResolve = null;
+            }
+        }
+    };
+
+    pyodideWorker.onerror = function(e) {
+        console.error('Worker error:', e);
+        if (workerResolve) {
+            workerResolve({ output: '', error: 'Ошибка выполнения' });
+            workerResolve = null;
+        }
+    };
+
+    // Инициализируем Pyodide в воркере
+    pyodideWorker.postMessage({ type: 'init' });
+}
 
 // Вывод в консоль
 function consoleLog(text, className = '') {
@@ -80,16 +226,10 @@ consoleInput.addEventListener('keydown', (e) => {
     }
 });
 
-// Загрузка Pyodide
-async function loadPyodideAndPackages() {
+// Загрузка Pyodide через Web Worker
+function loadPyodideAndPackages() {
     consoleLog('Загрузка Python...', 'info');
-    try {
-        pyodide = await loadPyodide();
-        pyodideReady = true;
-        consoleLog('Python готов к работе!', 'success');
-    } catch (error) {
-        consoleLog('Ошибка загрузки Python: ' + error.message, 'error');
-    }
+    createWorker();
 }
 
 // Подсчёт вызовов input() в коде
@@ -114,56 +254,46 @@ function countInputCalls(code) {
     return count;
 }
 
-// Запуск Python кода с заданными входными данными
-async function runPythonCode(code, inputs = []) {
+// Запуск Python кода с заданными входными данными (через Web Worker)
+async function runPythonCode(code, inputs = [], timeout = EXECUTION_TIMEOUT) {
     if (!pyodideReady) {
         return { output: '', error: 'Python ещё загружается...' };
     }
 
-    // Перехват stdout
-    pyodide.runPython(`
-import sys
+    return new Promise((resolve) => {
+        let timeoutId;
+        let resolved = false;
 
-class MockStdout:
-    def __init__(self):
-        self.data = []
-    def write(self, text):
-        self.data.append(text)
-    def flush(self):
-        pass
+        // Устанавливаем callback для результата
+        workerResolve = (result) => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timeoutId);
+                resolve(result);
+            }
+        };
 
-sys.stdout = MockStdout()
-sys.stderr = MockStdout()
-    `);
+        // Таймаут - прерываем воркер и создаём новый
+        timeoutId = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                workerResolve = null;
 
-    // Установка функции input
-    pyodide.globals.set('__inputs__', inputs);
-    pyodide.globals.set('__input_index__', 0);
+                // Прерываем зависший воркер
+                consoleLog('Прерывание выполнения...', 'info');
+                createWorker(); // Это terminate() старый и создаст новый
 
-    pyodide.runPython(`
-def input(prompt=''):
-    global __input_index__
-    if prompt:
-        sys.stdout.write(str(prompt))
-    if __input_index__ < len(__inputs__):
-        val = __inputs__[__input_index__]
-        __input_index__ += 1
-        sys.stdout.write(str(val) + '\\n')
-        return val
-    return ''
+                resolve({
+                    output: '',
+                    error: 'Превышено время выполнения (5 секунд). Программа была прервана.\nВозможно, она зациклилась. Проверьте условия циклов while и for.',
+                    timeout: true
+                });
+            }
+        }, timeout);
 
-import builtins
-builtins.input = input
-    `);
-
-    try {
-        pyodide.runPython(code);
-        const stdout = pyodide.runPython('sys.stdout.data');
-        const output = stdout.toJs().join('');
-        return { output: output.trim(), error: null };
-    } catch (error) {
-        return { output: '', error: error.message };
-    }
+        // Отправляем код на выполнение
+        pyodideWorker.postMessage({ type: 'run', code, inputs });
+    });
 }
 
 // Сохранение кода на сервер
@@ -199,16 +329,40 @@ async function collectInputsInteractively(code) {
     return inputs;
 }
 
+// Ожидание готовности Python (после перезагрузки воркера)
+async function waitForPyodide() {
+    if (pyodideReady) return true;
+
+    return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+            if (pyodideReady) {
+                clearInterval(checkInterval);
+                resolve(true);
+            }
+        }, 100);
+
+        // Максимум 30 секунд ожидания
+        setTimeout(() => {
+            clearInterval(checkInterval);
+            resolve(pyodideReady);
+        }, 30000);
+    });
+}
+
 // Кнопка "Запустить"
 runBtn.addEventListener('click', async () => {
-    if (!pyodideReady) {
-        clearConsole();
-        consoleLog('Python ещё загружается, подождите...', 'info');
-        return;
-    }
-
     clearConsole();
     hideInputLine();
+
+    if (!pyodideReady) {
+        consoleLog('Python загружается, подождите...', 'info');
+        await waitForPyodide();
+        if (!pyodideReady) {
+            consoleLog('Не удалось загрузить Python. Обновите страницу.', 'error');
+            return;
+        }
+        clearConsole();
+    }
 
     const code = editor.getValue();
     await saveCode();
@@ -223,32 +377,44 @@ runBtn.addEventListener('click', async () => {
     consoleLog('Выполнение...', 'info');
     const result = await runPythonCode(code, inputs);
 
-    // Очищаем только сообщение "Выполнение..."
-    consoleEl.lastChild.remove();
-
-    if (result.error) {
+    // Если был таймаут, ждём перезагрузки Python
+    if (result.timeout) {
+        clearConsole();
+        consoleLog(result.error, 'error');
+        consoleLog('\nПерезагрузка Python...', 'info');
+        await waitForPyodide();
+        consoleLog('Python готов. Исправьте код и попробуйте снова.', 'success');
+    } else if (result.error) {
+        // Убираем "Выполнение..." перед выводом ошибки
+        if (consoleEl.lastChild) consoleEl.lastChild.remove();
         consoleLog(result.error, 'error');
     } else {
+        // Убираем "Выполнение..." перед выводом результата
+        if (consoleEl.lastChild) consoleEl.lastChild.remove();
         consoleLog(result.output || '(нет вывода)');
     }
 });
 
 // Кнопка "Проверить"
 checkBtn.addEventListener('click', async () => {
+    clearConsole();
+    hideInputLine();
+
     if (!pyodideReady) {
+        consoleLog('Python загружается, подождите...', 'info');
+        await waitForPyodide();
+        if (!pyodideReady) {
+            consoleLog('Не удалось загрузить Python. Обновите страницу.', 'error');
+            return;
+        }
         clearConsole();
-        consoleLog('Python ещё загружается, подождите...', 'info');
-        return;
     }
 
     if (tests.length === 0) {
-        clearConsole();
         consoleLog('Нет тестов для проверки', 'info');
         return;
     }
 
-    clearConsole();
-    hideInputLine();
     consoleLog('Проверка решения...', 'info');
 
     const code = editor.getValue();
@@ -264,6 +430,15 @@ checkBtn.addEventListener('click', async () => {
         consoleLog(`\nТест ${i + 1}${isHidden ? ' (скрытый)' : ''}:`, 'info');
 
         const result = await runPythonCode(code, testInputs);
+
+        // Если был таймаут, прерываем проверку и ждём перезагрузки
+        if (result.timeout) {
+            consoleLog(result.error, 'error');
+            consoleLog('\nПерезагрузка Python...', 'info');
+            await waitForPyodide();
+            consoleLog('Python готов. Исправьте код и попробуйте снова.', 'success');
+            return;
+        }
 
         if (result.error) {
             if (isHidden) {
