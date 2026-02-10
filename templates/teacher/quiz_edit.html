@@ -25,7 +25,15 @@
     </div>
     <div class="card-body">
         <label for="quizTitle" class="form-label">Название</label>
-        <input type="text" class="form-control" id="quizTitle" value="{{ task.title }}">
+        <input type="text" class="form-control mb-3" id="quizTitle" value="{{ task.title }}">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="isBonus"
+                   {% if task.is_bonus %}checked{% endif %}>
+            <label class="form-check-label" for="isBonus">
+                <i class="bi bi-star text-warning"></i> Дополнительное задание
+            </label>
+            <div class="form-text">Доступно ученикам только после выполнения всех основных заданий</div>
+        </div>
     </div>
 </div>
 
@@ -382,6 +390,24 @@
             console.error('Ошибка:', error);
         }
     }
+
+    // ===== Автосохранение is_bonus =====
+    document.getElementById('isBonus').addEventListener('change', function() {
+        showStatus('Сохранение...', 'text-info');
+        fetch('/teacher/tasks/' + taskId + '/quiz/autosave', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({is_bonus: this.checked})
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                showStatus('Сохранено', 'text-success');
+                setTimeout(() => { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 3000);
+            }
+        })
+        .catch(() => showStatus('Ошибка', 'text-danger'));
+    });
 
     // ===== Автосохранение заголовка =====
     document.getElementById('quizTitle').addEventListener('input', function() {

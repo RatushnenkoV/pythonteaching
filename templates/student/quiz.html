@@ -23,9 +23,15 @@
             </a>
             {% endif %}
             {% if next_task %}
-            <a href="{{ url_for('student.task', task_id=next_task.id) }}" class="btn btn-outline-secondary btn-sm">
-                Вперёд <i class="bi bi-chevron-right"></i>
-            </a>
+                {% if next_task_available %}
+                <a href="{{ url_for('student.task', task_id=next_task.id) }}" class="btn btn-outline-secondary btn-sm">
+                    Вперёд <i class="bi bi-chevron-right"></i>
+                </a>
+                {% else %}
+                <span class="btn btn-outline-secondary btn-sm disabled" title="Сначала выполните все основные задания">
+                    Вперёд <i class="bi bi-chevron-right"></i>
+                </span>
+                {% endif %}
             {% endif %}
         </div>
     </div>
@@ -129,9 +135,15 @@
             </div>
             <div>
                 {% if next_task %}
-                <a href="{{ url_for('student.task', task_id=next_task.id) }}" class="btn btn-outline-secondary">
-                    Следующее задание <i class="bi bi-chevron-right"></i>
-                </a>
+                    {% if next_task_available %}
+                    <a href="{{ url_for('student.task', task_id=next_task.id) }}" class="btn btn-outline-secondary">
+                        Следующее задание <i class="bi bi-chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <span class="btn btn-outline-secondary disabled" title="Сначала выполните все основные задания">
+                        Следующее задание <i class="bi bi-chevron-right"></i>
+                    </span>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>

@@ -44,6 +44,14 @@
                         <textarea id="defaultCode" name="default_code" style="height: 150px;">{{ task.default_code or '' }}</textarea>
                         <div class="form-text">Этот код будет показан ученику при открытии задания</div>
                     </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="isBonus" name="is_bonus" value="1"
+                               {% if task.is_bonus %}checked{% endif %}>
+                        <label class="form-check-label" for="isBonus">
+                            <i class="bi bi-star text-warning"></i> Дополнительное задание
+                        </label>
+                        <div class="form-text">Доступно ученикам только после выполнения всех основных заданий</div>
+                    </div>
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg"></i> Сохранить
                     </button>
@@ -212,7 +220,8 @@
         const data = {
             title: document.getElementById('taskTitle').value,
             description: quill.root.innerHTML,
-            default_code: document.getElementById('defaultCode').value
+            default_code: document.getElementById('defaultCode').value,
+            is_bonus: document.getElementById('isBonus').checked
         };
 
         fetch(saveUrl, {
@@ -239,5 +248,6 @@
     quill.on('text-change', scheduleAutosave);
     codeEditor.on('change', scheduleAutosave);
     document.getElementById('taskTitle').addEventListener('input', scheduleAutosave);
+    document.getElementById('isBonus').addEventListener('change', scheduleAutosave);
 </script>
 {% endblock %}

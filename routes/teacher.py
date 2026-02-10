@@ -827,6 +827,7 @@ def update_task(task_id):
         task.title = title
     task.description = description
     task.default_code = default_code if default_code.strip() else None
+    task.is_bonus = 'is_bonus' in request.form
     db.session.commit()
     flash('Задание обновлено', 'success')
 
@@ -849,6 +850,8 @@ def autosave_task(task_id):
     if 'default_code' in data:
         code = data['default_code']
         task.default_code = code if code and code.strip() else None
+    if 'is_bonus' in data:
+        task.is_bonus = bool(data['is_bonus'])
     db.session.commit()
 
     return jsonify({'success': True})
@@ -939,6 +942,8 @@ def quiz_autosave(task_id):
     data = request.get_json()
     if data.get('title'):
         task.title = data['title']
+    if 'is_bonus' in data:
+        task.is_bonus = bool(data['is_bonus'])
     db.session.commit()
     return jsonify({'success': True})
 

@@ -105,6 +105,19 @@ def task(task_id):
         flash('Задание не доступно', 'error')
         return redirect(url_for('student.dashboard'))
 
+    # Проверяем доступ к бонусным заданиям
+    if task.is_bonus:
+        all_regular = [t for t in lesson.tasks if not t.is_bonus]
+        all_regular_done = all(
+            StudentProgress.query.filter_by(
+                student_id=current_user.id, task_id=t.id, is_completed=True
+            ).first() is not None
+            for t in all_regular
+        ) if all_regular else True
+        if not all_regular_done:
+            flash('Сначала выполните все основные задания', 'error')
+            return redirect(url_for('student.lesson', lesson_id=lesson.id))
+
     # Получаем прогресс
     progress = StudentProgress.query.filter_by(
         student_id=current_user.id, task_id=task_id
@@ -115,6 +128,17 @@ def task(task_id):
     current_index = next((i for i, t in enumerate(all_tasks) if t.id == task_id), 0)
     prev_task = all_tasks[current_index - 1] if current_index > 0 else None
     next_task = all_tasks[current_index + 1] if current_index < len(all_tasks) - 1 else None
+
+    # Проверяем доступность следующего задания
+    next_task_available = True
+    if next_task and next_task.is_bonus:
+        regular_tasks = [t for t in all_tasks if not t.is_bonus]
+        next_task_available = all(
+            StudentProgress.query.filter_by(
+                student_id=current_user.id, task_id=t.id, is_completed=True
+            ).first() is not None
+            for t in regular_tasks
+        ) if regular_tasks else True
 
     if task.task_type == 'quiz':
         # Считаем количество вопросов (не текстовых блоков)
@@ -135,6 +159,7 @@ def task(task_id):
                                progress=progress,
                                prev_task=prev_task,
                                next_task=next_task,
+                               next_task_available=next_task_available,
                                current_index=current_index + 1,
                                total_tasks=len(all_tasks),
                                question_count=question_count,
@@ -154,6 +179,7 @@ def task(task_id):
                            progress=progress,
                            prev_task=prev_task,
                            next_task=next_task,
+                           next_task_available=next_task_available,
                            tests=tests,
                            current_index=current_index + 1,
                            total_tasks=len(all_tasks))
