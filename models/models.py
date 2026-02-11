@@ -51,6 +51,7 @@ class Student(UserMixin, db.Model):
 
     progress = db.relationship('StudentProgress', backref='student', lazy=True, cascade='all, delete-orphan')
     quiz_answers = db.relationship('QuizAnswer', backref='student', lazy=True, cascade='all, delete-orphan')
+    activity_events = db.relationship('ActivityEvent', backref='student', lazy=True, cascade='all, delete-orphan')
 
     def get_id(self):
         return f"student_{self.id}"
@@ -100,6 +101,7 @@ class Task(db.Model):
     test_cases = db.relationship('TestCase', backref='task', lazy=True, order_by='TestCase.order', cascade='all, delete-orphan')
     quiz_elements = db.relationship('QuizElement', backref='task', lazy=True, order_by='QuizElement.order', cascade='all, delete-orphan')
     progress = db.relationship('StudentProgress', backref='task', lazy=True, cascade='all, delete-orphan')
+    activity_events = db.relationship('ActivityEvent', backref='task', lazy=True, cascade='all, delete-orphan')
 
 
 class TestCase(db.Model):
@@ -134,6 +136,10 @@ class StudentProgress(db.Model):
     is_completed = db.Column(db.Boolean, default=False)
     has_errors = db.Column(db.Boolean, default=False)
     completed_at = db.Column(db.DateTime, nullable=True)
+    paste_count = db.Column(db.Integer, default=0)
+    has_pastes = db.Column(db.Boolean, default=False)
+    has_copies = db.Column(db.Boolean, default=False)
+    has_leaves = db.Column(db.Boolean, default=False)
 
     __table_args__ = (db.UniqueConstraint('student_id', 'task_id', name='unique_student_task'),)
 
@@ -172,3 +178,14 @@ class QuizAnswer(db.Model):
     had_errors = db.Column(db.Boolean, default=False)
 
     __table_args__ = (db.UniqueConstraint('student_id', 'element_id', name='unique_student_element'),)
+
+
+class ActivityEvent(db.Model):
+    __tablename__ = 'activity_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
+    event_type = db.Column(db.String(20), nullable=False)  # 'paste' | 'copy' | 'leave'
+    text_content = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -155,3 +155,32 @@
 </div>
 {% endif %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+// Автообновление списка уроков
+(function() {
+    // Текущие ID уроков
+    let currentLessonIds = {{ lessons_data | map(attribute='lesson.id') | list | tojson }};
+
+    // Проверяем каждые 5 секунд
+    setInterval(async () => {
+        try {
+            const response = await fetch('{{ url_for("student.lessons_check") }}');
+            if (response.ok) {
+                const data = await response.json();
+                const newIds = data.lesson_ids.sort((a, b) => a - b);
+                const oldIds = currentLessonIds.sort((a, b) => a - b);
+
+                // Если списки отличаются - перезагружаем
+                if (JSON.stringify(newIds) !== JSON.stringify(oldIds)) {
+                    location.reload();
+                }
+            }
+        } catch (e) {
+            // Игнорируем ошибки сети
+        }
+    }, 5000);
+})();
+</script>
+{% endblock %}

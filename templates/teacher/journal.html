@@ -68,8 +68,9 @@
                         <tr>
                             <td class="sticky-col">{{ student.name }}</td>
                             {% for task in all_tasks %}
-                            <td class="text-center">
-                                {% set p = progress_matrix[student.id][task.id] %}
+                            {% set p = progress_matrix[student.id][task.id] %}
+                            <td class="text-center {% if task.task_type != 'quiz' and p.completed %}code-cell{% endif %}"
+                                {% if task.task_type != 'quiz' %}data-student-id="{{ student.id }}" data-task-id="{{ task.id }}"{% endif %}>
                                 {% if p.quiz is defined %}
                                     {% set q = p.quiz %}
                                     <small title="Без ошибок: {{ q.clean }}, с ошибками: {{ q.errors }}, не отвечено: {{ q.pending }}">
@@ -84,9 +85,9 @@
                                         {% endif %}
                                     </small>
                                 {% elif p.completed and not p.has_errors %}
-                                <i class="bi bi-check-circle-fill text-success"></i>
+                                <i class="bi bi-check-circle-fill text-success"></i>{% if p.has_pastes and p.has_leaves %}<i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Уходил со страницы + вставки"></i>{% elif p.has_pastes and p.has_copies %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1" title="Копирование + вставки"></i>{% endif %}
                                 {% elif p.completed and p.has_errors %}
-                                <i class="bi bi-exclamation-circle-fill text-warning"></i>
+                                <i class="bi bi-exclamation-circle-fill text-warning"></i>{% if p.has_pastes and p.has_leaves %}<i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Уходил со страницы + вставки"></i>{% elif p.has_pastes and p.has_copies %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1" title="Копирование + вставки"></i>{% endif %}
                                 {% else %}
                                 <i class="bi bi-circle text-muted"></i>
                                 {% endif %}
@@ -105,6 +106,9 @@
         <span><i class="bi bi-exclamation-circle-fill text-warning"></i> С ошибками: <strong>{{ stats.errors }}</strong></span>
         <span><i class="bi bi-circle text-muted"></i> Не выполнено: <strong>{{ stats.not_done }}</strong></span>
         <span class="ms-3 text-muted">|</span>
+        <span><i class="bi bi-exclamation-triangle-fill text-danger"></i> <small>Уходил + вставки</small></span>
+        <span><i class="bi bi-exclamation-triangle-fill text-warning"></i> <small>Копирование + вставки</small></span>
+        <span class="ms-3 text-muted">|</span>
         <span><small>Тесты: <span class="text-success">верно</span> / <span class="text-warning">с ош.</span> / <span class="text-muted">всего</span></small></span>
     </div>
     {% else %}
@@ -117,4 +121,155 @@
     <i class="bi bi-info-circle"></i> Выберите класс для просмотра журнала.
 </div>
 {% endif %}
+
+<!-- Modal: Просмотр кода ученика -->
+<div class="modal fade" id="codeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <span id="codeModalStudent"></span> — <span id="codeModalTask"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="codeModalStatus" class="mb-2"></div>
+                <pre id="codeModalContent" class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow: auto;"><code></code></pre>
+
+                <!-- Хронология действий -->
+                <div id="activityTimeline" class="mt-3" style="display: none;">
+                    <h6><i class="bi bi-clock-history"></i> Хронология действий</h6>
+                    <div id="activityEvents" class="activity-events border rounded p-2" style="max-height: 250px; overflow-y: auto;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const codeModal = new bootstrap.Modal(document.getElementById('codeModal'));
+    const codeModalStudent = document.getElementById('codeModalStudent');
+    const codeModalTask = document.getElementById('codeModalTask');
+    const codeModalStatus = document.getElementById('codeModalStatus');
+    const codeModalContent = document.getElementById('codeModalContent').querySelector('code');
+    const activityTimeline = document.getElementById('activityTimeline');
+    const activityEvents = document.getElementById('activityEvents');
+
+    document.querySelectorAll('.code-cell').forEach(cell => {
+        cell.style.cursor = 'pointer';
+        cell.title = 'Нажмите, чтобы посмотреть код';
+
+        cell.addEventListener('click', async function() {
+            const studentId = this.dataset.studentId;
+            const taskId = this.dataset.taskId;
+
+            codeModalStudent.textContent = 'Загрузка...';
+            codeModalTask.textContent = '';
+            codeModalStatus.innerHTML = '';
+            codeModalContent.textContent = '';
+            activityTimeline.style.display = 'none';
+            activityEvents.innerHTML = '';
+            codeModal.show();
+
+            try {
+                // Загружаем код и хронологию параллельно
+                const [codeRes, actRes] = await Promise.all([
+                    fetch(`/teacher/students/${studentId}/tasks/${taskId}/code`),
+                    fetch(`/teacher/students/${studentId}/tasks/${taskId}/activity`)
+                ]);
+                const data = await codeRes.json();
+                const actData = await actRes.json();
+
+                if (data.success) {
+                    codeModalStudent.textContent = data.student_name;
+                    codeModalTask.textContent = data.task_title;
+
+                    if (data.code) {
+                        codeModalContent.textContent = data.code;
+
+                        let statusHtml = '';
+                        if (data.is_completed) {
+                            if (data.has_errors) {
+                                statusHtml = '<span class="badge bg-warning"><i class="bi bi-exclamation-circle"></i> Выполнено с ошибками</span>';
+                            } else {
+                                statusHtml = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Выполнено</span>';
+                            }
+                        }
+                        if (data.has_leaves && data.has_pastes) {
+                            statusHtml += ' <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Уходил + вставки</span>';
+                        } else if (data.has_copies && data.has_pastes) {
+                            statusHtml += ' <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Копирование + вставки</span>';
+                        }
+                        if (data.completed_at) {
+                            const date = new Date(data.completed_at);
+                            statusHtml += ` <small class="text-muted">${date.toLocaleString('ru-RU')}</small>`;
+                        }
+                        codeModalStatus.innerHTML = statusHtml;
+                    } else {
+                        codeModalContent.textContent = '(Код пока не написан)';
+                        codeModalStatus.innerHTML = '<span class="badge bg-secondary">Не начато</span>';
+                    }
+                } else {
+                    codeModalContent.textContent = 'Ошибка: ' + (data.error || 'Неизвестная ошибка');
+                }
+
+                // Отображаем хронологию
+                if (actData.success && actData.events.length > 0) {
+                    activityTimeline.style.display = 'block';
+                    activityEvents.innerHTML = '';
+
+                    actData.events.forEach(event => {
+                        const div = document.createElement('div');
+                        div.className = 'activity-event border-bottom py-2 small';
+
+                        const time = event.created_at ? new Date(event.created_at).toLocaleString('ru-RU', {hour: '2-digit', minute: '2-digit', second: '2-digit'}) : '';
+                        let icon, label, detail = '';
+
+                        if (event.event_type === 'paste') {
+                            icon = 'bi-clipboard text-danger';
+                            label = 'Вставка';
+                            if (event.text_content) {
+                                const preview = event.text_content.length > 200
+                                    ? event.text_content.substring(0, 200) + '...'
+                                    : event.text_content;
+                                detail = `<pre class="activity-code-preview mt-1 mb-0">${escapeHtml(preview)}</pre>`;
+                            }
+                        } else if (event.event_type === 'copy') {
+                            icon = 'bi-files text-warning';
+                            label = 'Копирование';
+                            if (event.text_content) {
+                                const preview = event.text_content.length > 200
+                                    ? event.text_content.substring(0, 200) + '...'
+                                    : event.text_content;
+                                detail = `<pre class="activity-code-preview mt-1 mb-0">${escapeHtml(preview)}</pre>`;
+                            }
+                        } else if (event.event_type === 'leave') {
+                            icon = 'bi-box-arrow-right text-secondary';
+                            label = 'Ушёл со страницы';
+                        }
+
+                        div.innerHTML = `<i class="bi ${icon} me-1"></i> <strong>${label}</strong> <span class="text-muted">${time}</span>${detail}`;
+                        activityEvents.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                codeModalContent.textContent = 'Ошибка загрузки: ' + error.message;
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

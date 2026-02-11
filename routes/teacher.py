@@ -2,7 +2,7 @@ import json
 from urllib.parse import quote
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, Response
 from flask_login import login_required, current_user
-from models import db, Teacher, SchoolClass, Student, Topic, Lesson, Task, TestCase, LessonAssignment, StudentProgress, QuizElement, QuizOption, QuizAnswer
+from models import db, Teacher, SchoolClass, Student, Topic, Lesson, Task, TestCase, LessonAssignment, StudentProgress, QuizElement, QuizOption, QuizAnswer, ActivityEvent
 from utils.login_generator import generate_unique_login
 from functools import wraps
 
@@ -874,6 +874,53 @@ def delete_task(task_id):
     return redirect(url_for('teacher.lesson_edit', lesson_id=lesson_id))
 
 
+@teacher_bp.route('/tasks/<int:task_id>/move', methods=['POST'])
+@login_required
+@teacher_required
+def move_task(task_id):
+    """Перемещение задания вверх/вниз"""
+    task = Task.query.get_or_404(task_id)
+    if task.lesson.teacher_id != current_user.id:
+        return jsonify({'success': False}), 403
+
+    data = request.get_json()
+    direction = data.get('direction', 'up')
+    tasks = Task.query.filter_by(lesson_id=task.lesson_id).order_by(Task.order).all()
+
+    idx = next((i for i, t in enumerate(tasks) if t.id == task_id), None)
+    if idx is None:
+        return jsonify({'success': False})
+
+    if direction == 'up' and idx > 0:
+        tasks[idx].order, tasks[idx - 1].order = tasks[idx - 1].order, tasks[idx].order
+    elif direction == 'down' and idx < len(tasks) - 1:
+        tasks[idx].order, tasks[idx + 1].order = tasks[idx + 1].order, tasks[idx].order
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@teacher_bp.route('/lessons/<int:lesson_id>/tasks/reorder', methods=['POST'])
+@login_required
+@teacher_required
+def reorder_tasks(lesson_id):
+    """Перестановка заданий (drag-and-drop)"""
+    lesson = Lesson.query.get_or_404(lesson_id)
+    if lesson.teacher_id != current_user.id:
+        return jsonify({'success': False}), 403
+
+    data = request.get_json()
+    task_ids = data.get('task_ids', [])
+
+    for order, task_id in enumerate(task_ids, 1):
+        task = Task.query.get(task_id)
+        if task and task.lesson_id == lesson_id:
+            task.order = order
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 # ==================== ТЕСТЫ ====================
 
 @teacher_bp.route('/tasks/<int:task_id>/tests/create', methods=['POST'])
@@ -915,6 +962,27 @@ def delete_test(test_id):
     flash('Тест удалён', 'success')
 
     return redirect(url_for('teacher.task_edit', task_id=task_id))
+
+
+@teacher_bp.route('/tests/<int:test_id>/update', methods=['POST'])
+@login_required
+@teacher_required
+def update_test(test_id):
+    """Обновление теста (autosave)"""
+    test = TestCase.query.get_or_404(test_id)
+    if test.task.lesson.teacher_id != current_user.id:
+        return jsonify({'success': False}), 403
+
+    data = request.get_json()
+    if 'input_data' in data:
+        test.input_data = data['input_data']
+    if 'expected_output' in data:
+        test.expected_output = data['expected_output']
+    if 'is_hidden' in data:
+        test.is_hidden = data['is_hidden']
+
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 # ==================== КВИЗ (ТЕСТЫ) ====================
@@ -1125,7 +1193,11 @@ def journal():
 
                         entry = {
                             'completed': progress.is_completed if progress else False,
-                            'has_errors': progress.has_errors if progress else False
+                            'has_errors': progress.has_errors if progress else False,
+                            'paste_count': progress.paste_count if progress else 0,
+                            'has_pastes': progress.has_pastes if progress else False,
+                            'has_copies': progress.has_copies if progress else False,
+                            'has_leaves': progress.has_leaves if progress else False,
                         }
 
                         # Детальная статистика для тестов
@@ -1174,3 +1246,73 @@ def journal():
                                stats=stats)
 
     return render_template('teacher/journal.html', classes=classes, selected_class=None)
+
+
+@teacher_bp.route('/students/<int:student_id>/tasks/<int:task_id>/code')
+@login_required
+@teacher_required
+def get_student_code(student_id, task_id):
+    """Получение кода ученика для задания"""
+    student = Student.query.get_or_404(student_id)
+    task = Task.query.get_or_404(task_id)
+
+    # Проверяем доступ: ученик должен быть в классе учителя
+    if student.school_class.teacher_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Нет доступа'}), 403
+
+    # Проверяем, что это задание на код (не quiz)
+    if task.task_type == 'quiz':
+        return jsonify({'success': False, 'error': 'Это тест, не задание на программирование'}), 400
+
+    progress = StudentProgress.query.filter_by(
+        student_id=student_id,
+        task_id=task_id
+    ).first()
+
+    if not progress:
+        return jsonify({
+            'success': True,
+            'student_name': student.name,
+            'task_title': task.title,
+            'code': None,
+            'is_completed': False,
+            'has_pastes': False,
+            'has_copies': False,
+            'has_leaves': False,
+        })
+
+    return jsonify({
+        'success': True,
+        'student_name': student.name,
+        'task_title': task.title,
+        'code': progress.code or '',
+        'is_completed': progress.is_completed,
+        'has_errors': progress.has_errors,
+        'completed_at': progress.completed_at.isoformat() if progress.completed_at else None,
+        'has_pastes': progress.has_pastes or False,
+        'has_copies': progress.has_copies or False,
+        'has_leaves': progress.has_leaves or False,
+    })
+
+
+@teacher_bp.route('/students/<int:student_id>/tasks/<int:task_id>/activity')
+@login_required
+@teacher_required
+def get_student_activity(student_id, task_id):
+    """Хронология событий активности ученика для задания"""
+    student = Student.query.get_or_404(student_id)
+    if student.school_class.teacher_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Нет доступа'}), 403
+
+    events = ActivityEvent.query.filter_by(
+        student_id=student_id, task_id=task_id
+    ).order_by(ActivityEvent.created_at.asc()).all()
+
+    return jsonify({
+        'success': True,
+        'events': [{
+            'event_type': e.event_type,
+            'text_content': e.text_content,
+            'created_at': e.created_at.isoformat() if e.created_at else None
+        } for e in events]
+    })

@@ -431,6 +431,24 @@
         }, 1500);
     });
 
+    // ===== Автосохранение is_bonus =====
+    document.getElementById('isBonus').addEventListener('change', function() {
+        showStatus('Сохранение...', 'text-info');
+        fetch('/teacher/tasks/' + taskId + '/autosave', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({is_bonus: this.checked})
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                showStatus('Сохранено', 'text-success');
+                setTimeout(() => { if (statusEl.textContent === 'Сохранено') statusEl.textContent = ''; }, 3000);
+            }
+        })
+        .catch(() => showStatus('Ошибка', 'text-danger'));
+    });
+
     // ===== Инициализация всех Quill-редакторов =====
     document.querySelectorAll('.quill-editor').forEach(editorDiv => {
         initQuill(parseInt(editorDiv.dataset.elementId));

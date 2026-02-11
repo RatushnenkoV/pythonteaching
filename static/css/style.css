@@ -1,7 +1,310 @@
+/* ===== Тема: CSS переменные ===== */
+:root {
+    --bg-body: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-code: #f4f4f4;
+    --text-main: #212529;
+    --text-muted: #6c757d;
+    --border-color: #dee2e6;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+    --bg-body: #1a1a2e;
+    --bg-card: #16213e;
+    --bg-code: #0f0f23;
+    --text-main: #e8e8e8;
+    --text-muted: #a0a0a0;
+    --border-color: #2a2a4a;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
 /* Основные стили */
 body {
     min-height: 100vh;
-    background-color: #f8f9fa;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Тёмная тема: карточки */
+[data-theme="dark"] .card {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .card-header {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .card-footer {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-color);
+}
+
+/* Тёмная тема: формы */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--bg-code);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--bg-code);
+    border-color: #4a90d9;
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: var(--text-muted);
+}
+
+/* Тёмная тема: таблицы */
+[data-theme="dark"] .table {
+    --bs-table-color: var(--text-main);
+    --bs-table-bg: var(--bg-card);
+    --bs-table-border-color: var(--border-color);
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+    --bs-table-striped-color: var(--text-main);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
+    --bs-table-hover-color: var(--text-main);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .table th,
+[data-theme="dark"] .table td {
+    color: var(--text-main) !important;
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .table > :not(caption) > * > * {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .table-hover > tbody > tr:hover > * {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+}
+
+/* Тёмная тема: модальные окна */
+[data-theme="dark"] .modal-content {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .btn-close {
+    filter: invert(1);
+}
+
+/* Тёмная тема: алерты */
+[data-theme="dark"] .alert-info {
+    background-color: rgba(13, 202, 240, 0.15);
+    border-color: rgba(13, 202, 240, 0.3);
+    color: #6edff6;
+}
+
+[data-theme="dark"] .alert-success {
+    background-color: rgba(25, 135, 84, 0.15);
+    border-color: rgba(25, 135, 84, 0.3);
+    color: #75d99e;
+}
+
+[data-theme="dark"] .alert-warning {
+    background-color: rgba(255, 193, 7, 0.15);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: #ffda6a;
+}
+
+[data-theme="dark"] .alert-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+    border-color: rgba(220, 53, 69, 0.3);
+    color: #ea868f;
+}
+
+/* Тёмная тема: вкладки */
+[data-theme="dark"] .nav-tabs {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:hover {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link.active {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    border-bottom-color: var(--bg-card);
+    color: var(--text-main);
+}
+
+/* Тёмная тема: текст */
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: var(--text-main) !important;
+}
+
+/* Тёмная тема: прогресс-бар */
+[data-theme="dark"] .progress {
+    background-color: var(--border-color);
+}
+
+/* Тёмная тема: список */
+[data-theme="dark"] .list-group-item {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+/* Тёмная тема: dropdown */
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Тёмная тема: код */
+[data-theme="dark"] .task-text pre,
+[data-theme="dark"] .task-text code {
+    background-color: var(--bg-code);
+    color: #e8e8e8;
+}
+
+/* Тёмная тема: страница задания */
+[data-theme="dark"] .task-description {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+/* Тёмная тема: квиз */
+[data-theme="dark"] .quiz-question-card {
+    background-color: var(--bg-card);
+}
+
+/* Тёмная тема: bg-light */
+[data-theme="dark"] .bg-light {
+    background-color: var(--bg-card) !important;
+    color: var(--text-main);
+}
+
+/* Тёмная тема: бордеры */
+[data-theme="dark"] .border-bottom,
+[data-theme="dark"] .border-top,
+[data-theme="dark"] .border {
+    border-color: var(--border-color) !important;
+}
+
+/* Тёмная тема: table-light */
+[data-theme="dark"] .table-light,
+[data-theme="dark"] thead.table-light {
+    --bs-table-bg: rgba(255, 255, 255, 0.05);
+    --bs-table-color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-main) !important;
+}
+
+[data-theme="dark"] .table-light > *,
+[data-theme="dark"] .table-light th,
+[data-theme="dark"] thead.table-light th {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-main) !important;
+}
+
+/* Тёмная тема: breadcrumb */
+[data-theme="dark"] .breadcrumb {
+    background-color: transparent;
+}
+
+[data-theme="dark"] .breadcrumb-item a {
+    color: #6ea8fe;
+}
+
+[data-theme="dark"] .breadcrumb-item.active {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .breadcrumb-item + .breadcrumb-item::before {
+    color: var(--text-muted);
+}
+
+/* Тёмная тема: code */
+[data-theme="dark"] code {
+    background-color: var(--bg-code);
+    color: #e685b5;
+}
+
+/* Тёмная тема: hr */
+[data-theme="dark"] hr {
+    border-color: var(--border-color);
+    opacity: 1;
+}
+
+/* Тёмная тема: form-text */
+[data-theme="dark"] .form-text {
+    color: var(--text-muted);
+}
+
+/* Тёмная тема: заголовки */
+[data-theme="dark"] h1, [data-theme="dark"] h2,
+[data-theme="dark"] h3, [data-theme="dark"] h4,
+[data-theme="dark"] h5, [data-theme="dark"] h6 {
+    color: var(--text-main);
+}
+
+/* Тёмная тема: ссылки */
+[data-theme="dark"] a:not(.btn):not(.nav-link):not(.navbar-brand):not(.dropdown-item) {
+    color: #6ea8fe;
+}
+
+[data-theme="dark"] a:not(.btn):not(.nav-link):not(.navbar-brand):not(.dropdown-item):hover {
+    color: #9ec5fe;
+}
+
+/* Кнопка переключения темы */
+.theme-toggle {
+    background: none;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.8);
+    transition: color 0.2s;
+}
+
+.theme-toggle:hover {
+    color: white;
 }
 
 /* Карточки папок */
@@ -46,8 +349,8 @@ body {
 .task-description {
     width: 40%;
     overflow-y: auto;
-    border-right: 1px solid #dee2e6;
-    background: white;
+    border-right: 1px solid var(--border-color);
+    background: var(--bg-card);
 }
 
 .task-text {
@@ -116,7 +419,7 @@ body {
     height: 200px;
     display: flex;
     flex-direction: column;
-    border-top: 1px solid #dee2e6;
+    border-top: 1px solid var(--border-color);
 }
 
 .console-output {
@@ -187,8 +490,68 @@ body {
 .sticky-col {
     position: sticky;
     left: 0;
-    background: white;
+    background: var(--bg-card);
     z-index: 1;
+}
+
+[data-theme="dark"] .sticky-col {
+    background: var(--bg-card) !important;
+    color: var(--text-main) !important;
+}
+
+/* Кликабельные ячейки с кодом */
+.code-cell {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.code-cell:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+[data-theme="dark"] .code-cell:hover {
+    background-color: rgba(74, 144, 226, 0.2) !important;
+}
+
+/* Хронология активности в модалке */
+.activity-events .activity-event:last-child {
+    border-bottom: none !important;
+}
+
+.activity-code-preview {
+    white-space: pre-wrap;
+    word-break: break-all;
+    padding: 4px 8px;
+    font-size: 11px;
+    max-height: 80px;
+    overflow: hidden;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+[data-theme="dark"] .activity-events {
+    background-color: var(--bg-code);
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .activity-code-preview {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+/* Перетаскивание заданий */
+.task-item {
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+.task-item .drag-handle:hover {
+    color: var(--bs-primary) !important;
+}
+
+.task-item.dragging {
+    opacity: 0.4;
 }
 
 /* Печать */
@@ -230,7 +593,7 @@ body {
         height: auto;
         overflow-y: visible;
         border-right: none;
-        border-bottom: 1px solid #dee2e6;
+        border-bottom: 1px solid var(--border-color);
     }
 
     .task-editor {
@@ -293,9 +656,17 @@ body {
     outline-offset: -2px;
 }
 
+[data-theme="dark"] .drop-hover {
+    background-color: rgba(13, 110, 253, 0.2) !important;
+}
+
 [data-drop-target="breadcrumb"].drop-hover {
     background-color: #e7f1ff;
     outline: 2px solid #0d6efd;
+}
+
+[data-theme="dark"] [data-drop-target="breadcrumb"].drop-hover {
+    background-color: rgba(13, 110, 253, 0.2);
 }
 
 /* ===== Модалка перемещения: дерево папок ===== */
@@ -311,6 +682,10 @@ body {
 
 .folder-tree-item:hover {
     background-color: #f0f0f0;
+}
+
+[data-theme="dark"] .folder-tree-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .folder-tree-item.selected {

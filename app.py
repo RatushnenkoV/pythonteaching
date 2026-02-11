@@ -109,6 +109,37 @@ with app.app_context():
         db.session.execute(text('ALTER TABLE student_progress ADD COLUMN has_errors BOOLEAN DEFAULT 0'))
         db.session.commit()
 
+    # Миграция: добавляем paste_count в таблицу student_progress
+    if 'paste_count' not in sp_columns:
+        db.session.execute(text('ALTER TABLE student_progress ADD COLUMN paste_count INTEGER DEFAULT 0'))
+        db.session.commit()
+
+    # Миграция: добавляем флаги активности в student_progress
+    sp_columns_fresh = [col['name'] for col in inspector.get_columns('student_progress')]
+    if 'has_pastes' not in sp_columns_fresh:
+        db.session.execute(text('ALTER TABLE student_progress ADD COLUMN has_pastes BOOLEAN DEFAULT 0'))
+        db.session.commit()
+    if 'has_copies' not in sp_columns_fresh:
+        db.session.execute(text('ALTER TABLE student_progress ADD COLUMN has_copies BOOLEAN DEFAULT 0'))
+        db.session.commit()
+    if 'has_leaves' not in sp_columns_fresh:
+        db.session.execute(text('ALTER TABLE student_progress ADD COLUMN has_leaves BOOLEAN DEFAULT 0'))
+        db.session.commit()
+
+    # Миграция: создаём таблицу activity_events
+    if 'activity_events' not in inspector.get_table_names():
+        db.session.execute(text('''
+            CREATE TABLE activity_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL REFERENCES students(id),
+                task_id INTEGER NOT NULL REFERENCES tasks(id),
+                event_type VARCHAR(20) NOT NULL,
+                text_content TEXT,
+                created_at DATETIME
+            )
+        '''))
+        db.session.commit()
+
     # Миграция: делаем topic_id nullable в таблице lessons
     # SQLite не поддерживает ALTER COLUMN, поэтому пересоздаём таблицу
     lessons_columns = inspector.get_columns('lessons')

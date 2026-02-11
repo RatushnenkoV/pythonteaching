@@ -42,11 +42,14 @@
             </div>
             <div class="card-body">
                 {% if lesson.tasks %}
-                <div class="list-group">
+                <div class="list-group" id="tasksList">
                     {% for task in lesson.tasks %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="badge bg-secondary me-2">{{ task.order }}</span>
+                    <div class="list-group-item d-flex justify-content-between align-items-center task-item" data-task-id="{{ task.id }}" draggable="true">
+                        <div class="d-flex align-items-center">
+                            <span class="drag-handle me-2" style="cursor: grab;" title="Перетащите для перестановки">
+                                <i class="bi bi-grip-vertical text-muted"></i>
+                            </span>
+                            <span class="badge bg-secondary me-2 task-order">{{ task.order }}</span>
                             {% if task.task_type == 'quiz' %}
                             <i class="bi bi-question-circle text-info me-1"></i>
                             {% else %}
@@ -62,7 +65,13 @@
                             <small class="text-muted ms-2">{{ task.test_cases|length }} тестов</small>
                             {% endif %}
                         </div>
-                        <div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-outline-secondary btn-sm move-btn" data-direction="up" title="Вверх">
+                                <i class="bi bi-arrow-up"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm move-btn" data-direction="down" title="Вниз">
+                                <i class="bi bi-arrow-down"></i>
+                            </button>
                             <a href="{{ url_for('teacher.task_edit', task_id=task.id) }}" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-pencil"></i>
                             </a>
@@ -217,5 +226,119 @@
     document.querySelectorAll('.assign-checkbox').forEach(cb => {
         cb.addEventListener('change', saveAssignments);
     });
+
+    // ===== Перемещение заданий: кнопки =====
+    function renumberTasks() {
+        const items = document.querySelectorAll('#tasksList .task-item');
+        items.forEach((item, index) => {
+            const badge = item.querySelector('.task-order');
+            if (badge) badge.textContent = index + 1;
+        });
+    }
+
+    document.querySelectorAll('.move-btn').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const taskItem = this.closest('.task-item');
+            const taskId = taskItem.dataset.taskId;
+            const direction = this.dataset.direction;
+
+            const response = await fetch(`/teacher/tasks/${taskId}/move`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({direction: direction})
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                if (direction === 'up' && taskItem.previousElementSibling) {
+                    taskItem.parentNode.insertBefore(taskItem, taskItem.previousElementSibling);
+                } else if (direction === 'down' && taskItem.nextElementSibling) {
+                    taskItem.parentNode.insertBefore(taskItem.nextElementSibling, taskItem);
+                }
+                renumberTasks();
+                showStatus('bi-check-circle-fill', 'text-success', 'Порядок сохранён');
+            }
+        });
+    });
+
+    // ===== Drag-and-drop =====
+    const tasksList = document.getElementById('tasksList');
+    if (tasksList) {
+        let draggedItem = null;
+
+        tasksList.addEventListener('dragstart', function(e) {
+            if (!e.target.classList.contains('task-item')) return;
+            draggedItem = e.target;
+            draggedItem.style.opacity = '0.4';
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        tasksList.addEventListener('dragend', function(e) {
+            if (draggedItem) {
+                draggedItem.style.opacity = '1';
+                draggedItem = null;
+            }
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.style.borderTop = '';
+                item.style.borderBottom = '';
+            });
+        });
+
+        tasksList.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const target = e.target.closest('.task-item');
+            if (!target || target === draggedItem) return;
+
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.style.borderTop = '';
+                item.style.borderBottom = '';
+            });
+
+            const rect = target.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            if (e.clientY < midY) {
+                target.style.borderTop = '2px solid #0d6efd';
+            } else {
+                target.style.borderBottom = '2px solid #0d6efd';
+            }
+        });
+
+        tasksList.addEventListener('drop', async function(e) {
+            e.preventDefault();
+            const target = e.target.closest('.task-item');
+            if (!target || !draggedItem || target === draggedItem) return;
+
+            const rect = target.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            if (e.clientY < midY) {
+                target.parentNode.insertBefore(draggedItem, target);
+            } else {
+                target.parentNode.insertBefore(draggedItem, target.nextSibling);
+            }
+
+            renumberTasks();
+
+            // Сохраняем новый порядок
+            const taskIds = Array.from(document.querySelectorAll('#tasksList .task-item'))
+                .map(item => parseInt(item.dataset.taskId));
+
+            showStatus('bi-arrow-repeat', 'text-info', 'Сохранение...');
+            const response = await fetch(`/teacher/lessons/${lessonId}/tasks/reorder`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({task_ids: taskIds})
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showStatus('bi-check-circle-fill', 'text-success', 'Порядок сохранён');
+            } else {
+                showStatus('bi-exclamation-triangle-fill', 'text-danger', 'Ошибка сохранения');
+            }
+        });
+    }
 </script>
 {% endblock %}

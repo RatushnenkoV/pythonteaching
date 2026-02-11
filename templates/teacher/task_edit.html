@@ -69,42 +69,46 @@
                     <i class="bi bi-plus-lg"></i>
                 </button>
             </div>
-            <div class="card-body">
+            <div class="card-body" id="testsContainer">
                 {% if task.test_cases %}
-                <div class="accordion" id="testsAccordion">
-                    {% for test in task.test_cases %}
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#test{{ test.id }}">
-                                Тест #{{ loop.index }}
-                                {% if test.is_hidden %}<span class="badge bg-secondary ms-2">скрытый</span>{% endif %}
-                            </button>
-                        </h2>
-                        <div id="test{{ test.id }}" class="accordion-collapse collapse">
-                            <div class="accordion-body">
-                                <p class="mb-1"><strong>Ввод:</strong></p>
-                                <pre class="bg-light p-2 small">{{ test.input_data or '(нет ввода)' }}</pre>
-                                <p class="mb-1"><strong>Ожидаемый вывод:</strong></p>
-                                <pre class="bg-light p-2 small">{{ test.expected_output }}</pre>
-                                {% if test.is_hidden %}
-                                <div class="alert alert-secondary py-1 small mb-2">
-                                    <i class="bi bi-eye-slash"></i> Скрытый тест - ученик не видит данные
+                {% for test in task.test_cases %}
+                <div class="card mb-2 test-card" data-test-id="{{ test.id }}">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold small">Тест #{{ loop.index }}</span>
+                            <div class="d-flex gap-1 align-items-center">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input test-hidden" type="checkbox" id="hidden{{ test.id }}"
+                                           data-test-id="{{ test.id }}" {% if test.is_hidden %}checked{% endif %}>
+                                    <label class="form-check-label small" for="hidden{{ test.id }}">
+                                        <i class="bi bi-eye-slash"></i> Скрытый
+                                    </label>
                                 </div>
-                                {% endif %}
                                 <form method="POST" action="{{ url_for('teacher.delete_test', test_id=test.id) }}"
-                                      onsubmit="return confirm('Удалить тест?');">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
-                                        <i class="bi bi-trash"></i> Удалить тест
+                                      style="display: inline;" onsubmit="return confirm('Удалить тест?');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm py-0">
+                                        <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
                             </div>
                         </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Ввод</label>
+                                <textarea class="form-control form-control-sm test-input" rows="2"
+                                          data-test-id="{{ test.id }}" placeholder="(нет ввода)">{{ test.input_data or '' }}</textarea>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Вывод</label>
+                                <textarea class="form-control form-control-sm test-output" rows="2"
+                                          data-test-id="{{ test.id }}" placeholder="Ожидаемый вывод">{{ test.expected_output }}</textarea>
+                            </div>
+                        </div>
                     </div>
-                    {% endfor %}
                 </div>
+                {% endfor %}
                 {% else %}
-                <p class="text-muted mb-0">Нет тестов. Добавьте хотя бы один тест.</p>
+                <p class="text-muted mb-0" id="noTestsMessage">Нет тестов. Добавьте хотя бы один тест.</p>
                 {% endif %}
             </div>
         </div>
@@ -249,5 +253,55 @@
     codeEditor.on('change', scheduleAutosave);
     document.getElementById('taskTitle').addEventListener('input', scheduleAutosave);
     document.getElementById('isBonus').addEventListener('change', scheduleAutosave);
+
+    // ===== Автосохранение тестов =====
+    let testSaveTimer = null;
+
+    function saveTest(testId) {
+        const card = document.querySelector(`.test-card[data-test-id="${testId}"]`);
+        if (!card) return;
+
+        const inputData = card.querySelector('.test-input').value;
+        const expectedOutput = card.querySelector('.test-output').value;
+        const isHidden = card.querySelector('.test-hidden').checked;
+
+        showStatus('Сохранение...', 'text-info ms-2 small');
+        fetch(`/teacher/tests/${testId}/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                input_data: inputData,
+                expected_output: expectedOutput,
+                is_hidden: isHidden
+            })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                showStatus('Сохранено', 'text-success ms-2 small');
+                setTimeout(() => {
+                    if (statusEl.textContent === 'Сохранено') statusEl.textContent = '';
+                }, 3000);
+            }
+        })
+        .catch(() => showStatus('Ошибка', 'text-danger ms-2 small'));
+    }
+
+    document.getElementById('testsContainer').addEventListener('input', function(e) {
+        if (e.target.classList.contains('test-input') || e.target.classList.contains('test-output')) {
+            const testId = e.target.dataset.testId;
+            clearTimeout(testSaveTimer);
+            showStatus('(есть изменения)', 'text-warning ms-2 small');
+            testSaveTimer = setTimeout(() => saveTest(testId), 1500);
+        }
+    });
+
+    document.getElementById('testsContainer').addEventListener('change', function(e) {
+        if (e.target.classList.contains('test-hidden')) {
+            const testId = e.target.dataset.testId;
+            saveTest(testId);
+        }
+    });
+>>>>>>> 96f888b (Add student activity tracking, journal code viewer, and anti-cheat warnings)
 </script>
 {% endblock %}

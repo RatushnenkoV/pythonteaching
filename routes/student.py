@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Student, LessonAssignment, StudentProgress, Task, QuizElement, QuizOption, QuizAnswer
+from models import db, Student, LessonAssignment, StudentProgress, Task, QuizElement, QuizOption, QuizAnswer, ActivityEvent
 from functools import wraps
 from datetime import datetime
 
@@ -332,6 +332,67 @@ def quiz_check(task_id):
 
     db.session.commit()
     return jsonify({'correct': correct})
+
+
+@student_bp.route('/lessons/check')
+@login_required
+@student_required
+def lessons_check():
+    """API для проверки новых уроков (автообновление)"""
+    assignments = LessonAssignment.query.filter_by(class_id=current_user.class_id).all()
+    lesson_ids = sorted([a.lesson_id for a in assignments])
+    return jsonify({'lesson_ids': lesson_ids})
+
+
+@student_bp.route('/task/<int:task_id>/activity', methods=['POST'])
+@login_required
+@student_required
+def record_activity(task_id):
+    """Записывает событие активности ученика (paste/copy/leave)"""
+    task = Task.query.get_or_404(task_id)
+    lesson = task.lesson
+
+    assignment = LessonAssignment.query.filter_by(
+        lesson_id=lesson.id, class_id=current_user.class_id
+    ).first()
+    if not assignment:
+        return jsonify({'success': False}), 403
+
+    data = request.get_json()
+    event_type = data.get('event_type')
+    if event_type not in ('paste', 'copy', 'leave'):
+        return jsonify({'success': False, 'error': 'Invalid event_type'}), 400
+
+    text_content = data.get('text_content')
+
+    # Создаём запись события
+    event = ActivityEvent(
+        student_id=current_user.id,
+        task_id=task_id,
+        event_type=event_type,
+        text_content=text_content
+    )
+    db.session.add(event)
+
+    # Обновляем флаги в StudentProgress
+    progress = StudentProgress.query.filter_by(
+        student_id=current_user.id, task_id=task_id
+    ).first()
+
+    if not progress:
+        progress = StudentProgress(student_id=current_user.id, task_id=task_id)
+        db.session.add(progress)
+
+    if event_type == 'paste':
+        progress.paste_count = (progress.paste_count or 0) + 1
+        progress.has_pastes = True
+    elif event_type == 'copy':
+        progress.has_copies = True
+    elif event_type == 'leave':
+        progress.has_leaves = True
+
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @student_bp.route('/task/<int:task_id>/quiz/complete', methods=['POST'])

@@ -418,6 +418,12 @@ checkBtn.addEventListener('click', async () => {
     consoleLog('Проверка решения...', 'info');
 
     const code = editor.getValue();
+
+    // Проверяем, не совпадает ли код с вставленным текстом
+    if (lastPastedText && code.trim() === lastPastedText.trim()) {
+        showCheatingWarning();
+    }
+
     await saveCode();
 
     let allPassed = true;
@@ -514,6 +520,95 @@ let saveTimeout;
 editor.on('change', () => {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(saveCode, 2000);
+});
+
+// ===== Отслеживание активности ученика =====
+const PASTE_THRESHOLD = 15;
+let lastPastedText = null;
+
+function showPasteWarning() {
+    const existing = document.getElementById('pasteWarning');
+    if (existing) existing.remove();
+
+    const warning = document.createElement('div');
+    warning.id = 'pasteWarning';
+    warning.className = 'position-fixed top-0 end-0 m-3';
+    warning.style.zIndex = '9999';
+    warning.innerHTML = `
+        <div class="alert alert-warning shadow-sm d-flex align-items-center" role="alert">
+            <i class="bi bi-clipboard-check me-2"></i>
+            <div>
+                <strong>Вставка обнаружена</strong><br>
+                <small>Учитель увидит это в журнале</small>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(warning);
+    setTimeout(() => warning.remove(), 4000);
+}
+
+function showCheatingWarning() {
+    const existing = document.getElementById('cheatingWarning');
+    if (existing) existing.remove();
+
+    const warning = document.createElement('div');
+    warning.id = 'cheatingWarning';
+    warning.className = 'position-fixed top-0 end-0 m-3';
+    warning.style.zIndex = '9999';
+    warning.innerHTML = `
+        <div class="alert alert-danger shadow-sm d-flex align-items-center" role="alert">
+            <i class="bi bi-emoji-frown me-2"></i>
+            <div>
+                <strong>Списывать не хорошо</strong><br>
+                <small>Попробуйте решить задание самостоятельно</small>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(warning);
+    setTimeout(() => warning.remove(), 5000);
+}
+
+async function recordActivity(eventType, textContent = null) {
+    try {
+        await fetch(`/student/task/${taskId}/activity`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_type: eventType, text_content: textContent })
+        });
+    } catch (error) {
+        console.error('Ошибка записи активности:', error);
+    }
+}
+
+// Отслеживание вставки в редактор
+editor.on('beforeChange', (cm, change) => {
+    if (change.origin === 'paste') {
+        const pastedText = change.text.join('\n');
+        if (pastedText.length >= PASTE_THRESHOLD && !isCompleted) {
+            lastPastedText = pastedText;
+            showPasteWarning();
+            recordActivity('paste', pastedText);
+        }
+    }
+});
+
+// Отслеживание копирования из описания задания
+const descriptionEl = document.querySelector('.task-description');
+if (descriptionEl) {
+    descriptionEl.addEventListener('copy', () => {
+        if (isCompleted) return;
+        const selectedText = window.getSelection().toString();
+        if (selectedText.length > 0) {
+            recordActivity('copy', selectedText);
+        }
+    });
+}
+
+// Отслеживание ухода со страницы (переключение вкладки)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && !isCompleted) {
+        recordActivity('leave');
+    }
 });
 
 // Загрузка Pyodide при старте
