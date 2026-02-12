@@ -1,6 +1,16 @@
 // Множество правильно отвеченных вопросов
 const answeredCorrectly = new Set(answeredIds || []);
 
+// Змейка-маскот
+function showSnake(imageName) {
+    const img = document.createElement('img');
+    img.src = `/static/imgs/snakes/${imageName}`;
+    img.className = 'snake-bounce';
+    img.alt = '';
+    document.body.appendChild(img);
+    img.addEventListener('animationend', () => img.remove());
+}
+
 // Отключить inputs для вопроса
 function disableQuestion(elementId) {
     const container = document.getElementById('element-' + elementId);
@@ -48,9 +58,11 @@ document.querySelectorAll('.check-answer-btn').forEach(btn => {
                 // Проверяем, все ли вопросы отвечены
                 if (answeredCorrectly.size === totalQuestions) {
                     await completeQuiz();
+                    showSnake('happy.png');
                 }
             } else {
                 feedbackEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle-fill"></i> Неправильно. Попробуйте ещё раз.</span>';
+                showSnake('thinking.png');
             }
         } catch (error) {
             console.error('Ошибка:', error);

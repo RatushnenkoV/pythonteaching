@@ -420,8 +420,10 @@ checkBtn.addEventListener('click', async () => {
     const code = editor.getValue();
 
     // Проверяем, не совпадает ли код с вставленным текстом
-    if (lastPastedText && code.trim() === lastPastedText.trim()) {
+    const isCopied = lastPastedText && code.trim() === lastPastedText.trim();
+    if (isCopied) {
         showCheatingWarning();
+        showSnake('stressed.png');
     }
 
     await saveCode();
@@ -482,8 +484,15 @@ checkBtn.addEventListener('click', async () => {
         }
     }
 
+    if (!allPassed) {
+        showSnake('thinking.png');
+    }
+
     if (allPassed) {
         consoleLog('\n=== Все тесты пройдены! ===', 'success');
+        if (!isCopied) {
+            showSnake('happy.png');
+        }
 
         // Отмечаем задание как выполненное
         try {
@@ -502,11 +511,19 @@ checkBtn.addEventListener('click', async () => {
                 // Показываем уведомление
                 const alert = document.createElement('div');
                 alert.className = 'position-fixed bottom-0 start-50 translate-middle-x mb-3';
-                alert.innerHTML = `
-                    <div class="alert alert-success shadow">
-                        <i class="bi bi-check-circle-fill"></i> Задание выполнено!
-                    </div>
-                `;
+                if (isCopied) {
+                    alert.innerHTML = `
+                        <div class="alert alert-warning shadow">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Задача выполнена копированием
+                        </div>
+                    `;
+                } else {
+                    alert.innerHTML = `
+                        <div class="alert alert-success shadow">
+                            <i class="bi bi-check-circle-fill"></i> Задание выполнено!
+                        </div>
+                    `;
+                }
                 document.body.appendChild(alert);
             }
         } catch (error) {
@@ -521,6 +538,16 @@ editor.on('change', () => {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(saveCode, 2000);
 });
+
+// ===== Змейка-маскот =====
+function showSnake(imageName) {
+    const img = document.createElement('img');
+    img.src = `/static/imgs/snakes/${imageName}`;
+    img.className = 'snake-bounce';
+    img.alt = '';
+    document.body.appendChild(img);
+    img.addEventListener('animationend', () => img.remove());
+}
 
 // ===== Отслеживание активности ученика =====
 const PASTE_THRESHOLD = 15;

@@ -762,3 +762,40 @@ body {
     background: #49483e;
     color: #f8f8f2;
 }
+
+/* ===== Змейка-маскот ===== */
+.snake-bounce {
+    position: fixed;
+    bottom: -160px;
+    left: 150px;
+    transform: translateX(-50%);
+    width: 150px;
+    z-index: 10000;
+    pointer-events: none;
+    animation: snakeBounce 1.2s ease-out forwards;
+}
+.snake-bounce {
+    position: fixed;
+    bottom: -160px;
+    left: 150px;
+    transform: translateX(-50%);
+    width: 150px;
+    z-index: 10000;
+    pointer-events: none;
+    /* Используем ease-in-out для плавности в обе стороны */
+    animation: snakeBounce 1.5s ease-in-out forwards;
+}
+
+@keyframes snakeBounce {
+    0% { 
+        bottom: -160px; 
+    }
+    /* Пик траектории на середине времени */
+    50% { 
+        bottom: 80px; 
+    }
+    /* Возврат в исходную точку */
+    100% { 
+        bottom: -160px; 
+    }
+}
